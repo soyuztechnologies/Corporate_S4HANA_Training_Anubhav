@@ -1,0 +1,152 @@
+*&---------------------------------------------------------------------*
+*& Report zfebnew_abap_syntax
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+REPORT zfebnew_abap_syntax.
+
+"Case Expression
+select buyer_guid, sum( gross_amount ) as total_sales,
+       case
+         when sum( gross_amount ) > 1000000 then 'High'
+         else 'Low'
+         end as OrderType
+         from snwd_so GROUP BY buyer_guid into table @data(itab) .
+
+Loop at itab into data(wa).
+    write: / wa-buyer_guid, wa-total_sales, wa-OrderType.
+endloop.
+
+"Simple Case
+*select company_name, case bp_role
+*                        when '01' then 'Customer'
+*                        when '02' then 'Supplier' end as bp_role
+*  from snwd_bpa into table @data(itab).
+*
+*Loop at itab into data(wa).
+*    write: / wa-company_name, wa-bp_role.
+*endloop.
+
+"String Literals can be used in Select
+*select 'M/s ' && company_name as company_name from snwd_bpa into table @data(itab).
+*
+*Loop at itab into data(wa).
+*    write: / wa-company_name.
+*endloop.
+
+
+* String Expression
+*data: lv_str type c LENGTH 80,
+*      lv_ctry type c LENGTH 50 VALUE 'India'
+*      .
+*
+**CONCATENATE 'I love ' '''' lv_ctry '''' into lv_str RESPECTING BLANKS.
+*lv_str = |I love '{ lv_ctry }'|.
+*
+*WRITE : / lv_str.
+
+*types: BEGIN OF ty_team,
+*         captain type c LENGTH 40,
+*         team type c LENGTH 80,
+*         score type i,
+*       END OF TY_TEAM,
+*       tt_team type STANDARD TABLE OF ty_team with DEFAULT KEY,
+*       BEGIN OF ty_team2,
+*         lead type c LENGTH 40,
+*         scrum type c LENGTH 80,
+*         goals type i,
+*       END OF TY_TEAM2,
+*       tt_team2 type STANDARD TABLE OF ty_team2 with DEFAULT KEY.
+*
+*data(itab) = value tt_team( ( captain = 'Christiano Ronaldo' team = 'Menchester'  )
+*                ( captain = 'Messy' team = 'UCB' )
+*                ( captain = 'Nymer' team = 'Liverpool' ) ).
+*
+*data: jtab type tt_team2.
+*
+*"jtab = CORRESPONDING #( itab ).
+*
+*"jtab = CORRESPONDING #( itab MAPPING scrum = team lead = captain goals = score ).
+*
+*jtab = value #( for wa in itab ( scrum = wa-team
+*                                 lead = wa-captain
+*                                 goals = 8
+*                     ) ).
+*
+*Loop at jtab into data(wa1).
+*    write: / wa1-scrum, wa1-lead, wa1-goals.
+*endloop.
+
+"Value Expression and read table expression
+*types: BEGIN OF ty_team,
+*         captain type c LENGTH 40,
+*         team type c LENGTH 80,
+*         score type i,
+*       END OF TY_TEAM,
+*       tt_team type STANDARD TABLE OF ty_team with DEFAULT KEY.
+*
+**data: itab type TABLE of ty_team,
+**      wa like line of itab.
+*
+**wa-captain = 'Christiano Ronaldo'.
+**wa-team = 'Menchester'.
+**append wa to itab.
+**
+**wa-captain = 'Messy'.
+**wa-team = 'UCB'.
+**append wa to itab.
+**
+**wa-captain = 'Nymer'.
+**wa-team = 'Liverpool'.
+**append wa to itab.
+*"Value Expression/ Constructor Expression
+*data(itab) = value tt_team( ( captain = 'Christiano Ronaldo' team = 'Menchester'  )
+*                ( captain = 'Messy' team = 'UCB' )
+*                ( captain = 'Nymer' team = 'Liverpool' ) ).
+*
+*Loop at itab into data(wa).
+*    write: / wa-captain, wa-team.
+*endloop.
+*ULINE.
+**Read table itab into wa with key team = 'UCB'.
+*"Table Expression
+*if line_exists( itab[ team = 'TTR' ] ).
+*    wa = itab[ team = 'TTR' ].
+*    WRITE : / wa-captain, wa-team.
+*ENDIF.
+
+
+""create class object
+***data: lo_obj type ref to cl_sapplco_account_determinati.
+***CREATE object lo_obj.
+
+*data(lo_obj) = new cl_sapplco_account_determinati( ).
+
+
+
+"Inline data declaration
+*select bp_id, currency_code, company_name,
+*       created_by from snwd_bpa into table @data(lt_bpa).
+*
+*Loop at lt_bpa into data(ls_bpa).
+*    write: / ls_bpa-bp_id, ls_bpa-company_name.
+*endloop.
+*
+*loop at lt_bpa ASSIGNING FIELD-SYMBOL(<fs>).
+*    write: / <fs>-bp_id, <fs>-company_name.
+*ENDLOOP.
+
+
+
+
+**************************
+*data: lt_bpa type table of snwd_bpa,
+*      ls_bpa type snwd_bpa.
+*
+*"We can now use comma in column names + Escaping of host variable
+*select bp_id, currency_code, company_name,
+*       created_by from snwd_bpa into CORRESPONDING FIELDS OF table @lt_bpa.
+*
+*Loop at lt_bpa into ls_bpa.
+*    write: / ls_bpa-bp_id, ls_bpa-company_name.
+*endloop.
