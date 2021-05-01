@@ -1,0 +1,211 @@
+*&---------------------------------------------------------------------*
+*& Report zoia_simple
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+REPORT zoia_simple.
+
+types: BEGIN OF ty_open_days,
+        company_name type snwd_bpa-company_name,
+        bp_id type snwd_bpa-bp_id,
+        days type int4,
+        counts type int4,
+       END OF TY_OPEN_DAYS,
+       BEGIN OF ty_amount,
+        bp_id type snwd_bpa-bp_id,
+        company_name type snwd_bpa-company_name,
+        gross_amount type snwd_so_inv_item-gross_amount,
+        currency_code type snwd_so_inv_item-currency_code,
+       END OF TY_AMOUNT,
+       BEGIN OF ty_oia,
+        bp_id type snwd_bpa-bp_id,
+        company_name type snwd_bpa-company_name,
+        avg_open_days type int4,
+        gross_amount type snwd_so_inv_item-gross_amount,
+        currency_code type snwd_so_inv_item-currency_code,
+        tagging type c,
+       END OF ty_oia.
+
+data: ls_open_days type ty_open_days,
+      lt_open_days type table of ty_open_days,
+      ls_amount type ty_amount,
+      lt_amount type table of  ty_amount,
+      ls_oia type ty_oia,
+      lt_oia type table of  ty_oia.
+
+data(lo_timer) = cl_abap_runtime=>create_hr_timer(  ).
+data(t1) = lo_timer->get_runtime(   ).
+
+"Step 1: Read the customizing
+select single * from zdp_cust into @data(ls_cust) where usrid = @sy-uname.
+
+"Step 2: Calculate since HOW long the INVOICES are pending
+select * from snwd_so_inv_head as inv inner join snwD_bpa as bpa
+    on inv~buyer_guid = bpa~node_key into @data(ls_days) where inv~payment_status = ''.
+    MOVE-CORRESPONDING ls_days to ls_open_days.
+    ls_open_days-bp_id = ls_days-bpa-bp_id.
+    ls_open_days-company_name = ls_days-bpa-company_name.
+    ls_open_days-counts = 1.
+    convert TIME STAMP ls_days-inv-changed_at TIME ZONE sy-zonlo into date data(lv_date).
+    ls_open_days-days = sy-datum - lv_date.
+    collect ls_open_days into lt_open_days.
+ENDSELECT.
+
+"Step 3: calculate the amount which is pending in "common currency"
+select * from snwd_so_inv_item as item inner join snwd_so_inv_head as head
+              on item~parent_key = head~node_key
+              inner join snwD_bpa as bpa
+              on head~buyer_guid = bpa~node_key
+              into @data(ls_inv_item) where head~payment_status = ''.
+
+    call FUNCTION 'CONVERT_TO_LOCAL_CURRENCY'
+      EXPORTING
+*        client            = SY-MANDT
+        date              = sy-datum
+        foreign_amount    = ls_inv_item-item-gross_amount
+        foreign_currency  = ls_inv_item-item-currency_code
+        local_currency    = ls_cust-currency_code
+      IMPORTING
+        local_amount      = ls_amount-gross_amount
+      .
+
+     ls_amount-currency_code = ls_cust-currency_code.
+     ls_amount-bp_id = ls_inv_item-bpa-bp_id.
+     ls_amount-company_name = ls_inv_item-bpa-company_name.
+     collect ls_amount into lt_amount.
+
+ENDSELECT.
+
+loop at lt_open_days into ls_open_days.
+    read table lt_amount into ls_amount with key bp_id = ls_open_days-bp_id.
+    if sy-subrc = 0.
+       MOVE-CORRESPONDING ls_amount to ls_oia.
+       ls_oia-company_name = ls_open_days-company_name.
+       ls_oia-avg_open_days = ls_open_days-days / ls_open_days-counts.
+       if ( ls_oia-avg_open_days > ls_cust-max_open_days and ls_oia-gross_amount > ls_cust-max_amount ).
+        ls_oia-tagging = abap_true.
+       ENDIF.
+       append ls_oia to lt_oia.
+       clear: ls_oia.
+    endif.
+ENDLOOP.
+
+data(t2) = lo_timer->get_runtime(   ).
+data(t3) = ( t2 - t1 ) / 1000.
+cl_demo_output=>write_text( text = |time taken was { t3 } ms| ).
+cl_demo_output=>display_data(
+  EXPORTING
+    value = lt_oia
+*    name  =
+).
+
+
+
+
+
+
+*&---------------------------------------------------------------------*
+*& Report zoia_agg
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+REPORT zoia_agg.
+
+
+types: BEGIN OF ty_open_days,
+        company_name type snwd_bpa-company_name,
+        bp_id type snwd_bpa-bp_id,
+        days type int4,
+        counts type int4,
+       END OF TY_OPEN_DAYS,
+       BEGIN OF ty_amount,
+        bp_id type snwd_bpa-bp_id,
+        company_name type snwd_bpa-company_name,
+        gross_amount type snwd_so_inv_item-gross_amount,
+        currency_code type snwd_so_inv_item-currency_code,
+       END OF TY_AMOUNT,
+       BEGIN OF ty_oia,
+        bp_id type snwd_bpa-bp_id,
+        company_name type snwd_bpa-company_name,
+        avg_open_days type int4,
+        gross_amount type snwd_so_inv_item-gross_amount,
+        currency_code type snwd_so_inv_item-currency_code,
+        tagging type c,
+       END OF ty_oia.
+
+data: ls_open_days type ty_open_days,
+      lt_open_days type table of ty_open_days,
+      ls_amount type ty_amount,
+      lt_amount type table of  ty_amount,
+      ls_oia type ty_oia,
+      lt_oia type table of  ty_oia.
+
+data(lo_timer) = cl_abap_runtime=>create_hr_timer(  ).
+data(t1) = lo_timer->get_runtime(   ).
+
+"Step 1: Read the customizing
+select single * from zdp_cust into @data(ls_cust) where usrid = @sy-uname.
+
+"Step 2: Calculate since HOW long the INVOICES are pending
+select bpa~bp_id, bpa~company_name, inv~changed_at,
+       count( * ) as counts
+     from snwd_so_inv_head as inv inner join snwD_bpa as bpa
+    on inv~buyer_guid = bpa~node_key into @data(ls_days) where inv~payment_status = ''
+    group by bpa~bp_id, bpa~company_name, inv~changed_at.
+    MOVE-CORRESPONDING ls_days to ls_open_days.
+    ls_open_days-bp_id = ls_days-bp_id.
+    ls_open_days-company_name = ls_days-company_name.
+    ls_open_days-counts = ls_days-counts.
+    convert TIME STAMP ls_days-changed_at TIME ZONE sy-zonlo into date data(lv_date).
+    ls_open_days-days = ( sy-datum - lv_date ) * ls_days-counts.
+    collect ls_open_days into lt_open_days.
+ENDSELECT.
+
+"Step 3: calculate the amount which is pending in "common currency"
+select bpa~bp_id, sum( item~gross_amount ) as gross_amount,
+                  item~currency_code from snwd_so_inv_item as item inner join snwd_so_inv_head as head
+              on item~parent_key = head~node_key
+              inner join snwD_bpa as bpa
+              on head~buyer_guid = bpa~node_key
+              into @data(ls_inv_item) where head~payment_status = ''
+              group by bpa~bp_id, item~currency_code.
+
+    call FUNCTION 'CONVERT_TO_LOCAL_CURRENCY'
+      EXPORTING
+*        client            = SY-MANDT
+        date              = sy-datum
+        foreign_amount    = ls_inv_item-gross_amount
+        foreign_currency  = ls_inv_item-currency_code
+        local_currency    = ls_cust-currency_code
+      IMPORTING
+        local_amount      = ls_amount-gross_amount
+      .
+
+     ls_amount-currency_code = ls_cust-currency_code.
+     ls_amount-bp_id = ls_inv_item-bp_id.
+     collect ls_amount into lt_amount.
+
+ENDSELECT.
+
+loop at lt_open_days into ls_open_days.
+    read table lt_amount into ls_amount with key bp_id = ls_open_days-bp_id.
+    if sy-subrc = 0.
+       MOVE-CORRESPONDING ls_amount to ls_oia.
+       ls_oia-company_name = ls_open_days-company_name.
+       ls_oia-avg_open_days = ls_open_days-days / ls_open_days-counts.
+       if ( ls_oia-avg_open_days > ls_cust-max_open_days and ls_oia-gross_amount > ls_cust-max_amount ).
+        ls_oia-tagging = abap_true.
+       ENDIF.
+       append ls_oia to lt_oia.
+       clear: ls_oia.
+    endif.
+ENDLOOP.
+
+data(t2) = lo_timer->get_runtime(   ).
+data(t3) = ( t2 - t1 ) / 1000.
+cl_demo_output=>write_text( text = |time taken was { t3 } ms| ).
+cl_demo_output=>display_data(
+  EXPORTING
+    value = lt_oia
+*    name  =
+).
