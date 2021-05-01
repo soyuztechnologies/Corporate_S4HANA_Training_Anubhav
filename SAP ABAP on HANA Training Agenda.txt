@@ -1,0 +1,206 @@
+SAP ABAP on HANA  & s/4hana Trainings
+
+Agenda Day : 1
+
+Introduction of HANA  
+Introduction  to IMCE( In-Memory Computing Engine )
+Hardware and Software  Innovation
+Row v/s Column Store
+Evolution of  HANA with SAP solutions
+Architecture  of  SAP HANA Platform
+Describing  Index Server
+Describe How System Design Works
+ 
+--Break-- 
+
+Describing Job Roles
+Tool’s : 
+  Installation and Setup of ABAP Development Tool (ADT) on Eclipse.
+  Connection to your HANA Database System via HANA Studio.
+  Installation of WebIDE
+  How we use BAS ( Business Application Studio)
+Describing Sever Option’s and Details
+How ABAP Meets HANA Database
+Understanding Concept of  Schema 
+
+Agenda Day : 2
+
+New ABAP Syntax
+Inline data declaration
+Dynamic memory references
+SQL Statement with escaping of  host variables 
+SQL Enhancement
+Introduction to DML, DDL, DCL, DQL.
+Describe EPM Data Model
+ABAP connects to HANA
+Understanding HANA Folder Structure
+Elaborating  Design Time Object
+Describing HANA Basics
+ 
+--Break--
+
+Showing Migration to SAP HANA as well as S/4 HANA
+Describing Any Database Migration  to HANA Database
+ATC ( ABAP Test Cockpit ) v/s SCI ( SAP Code Inspector )
+S/4HANA Code Conversion
+
+Agenda Day : 3
+
+Performance Guideline  for ABAP CODE
+Describing SQLM (SQL Monitor)
+Understanding Code inspector variants
+Describing Data Migration Point
+Static check with SQL performance ( SWLT )
+SQL performance work list monitor
+
+--Break--
+
+OIA Scenario ( Open Item Analysis )
+Articulate Requirement for OIA
+Execute OIA on ABAP
+SQL Console
+Introduction to HANA Database User
+Data Modeling 
+Attribute View
+Analytics View
+Calculation View
+Graphical Calculation Views
+Scripted Calculation Views
+Classification of  Join
+
+Agenda Day : 4
+
+Creation and execution of  Data Models 
+Showing Concept of currency conversion
+Concept of  Dimensions and Measures 
+Implementing OIA  Using Calculation View 
+Concept of  Delivery Unit
+
+--Break--
+
+Consume HANA Objects
+ADBC ( ABAP Database Connectivity )
+View Proxy
+Transporting of  Dependent Objects
+Lifecycle Management
+HANA  Transport Container
+SQL Script
+Declarative Logic
+Imperative Logic
+Making Data Flow Graph
+Containers
+Anonymous Block
+Stored Procedure
+User-defined function
+Scaler UDF
+Table UDF 
+
+Agenda Day : 5
+
+Describing Data Objects in SQL Script ( Variables )
+Scalar 
+Array
+Tables
+Concept of  Procedure
+Create Procedure 
+Update Procedure
+Delete Procedure
+Concept of  Cursor
+Implicit
+Explicit
+Making Procedure with parameters
+Making Anonymous Block in HANA Database
+Describing User Defined Function with HANADB
+Reuse Function for SQL queries
+ 
+--Break--
+
+What is AMDP
+Introduction  of  AMDP
+Implementation of  AMDP
+Why we use AMDP
+Describing Rules for AMDP
+Describing New way to Create Structure 
+Create AMDP for Consume SQL Script in ADT 
+
+
+Agenda Day : 6
+
+Introduction of  CDS(Core Data & Service ) 
+Concept of  CDS View
+Describing Standard CDS View
+Understanding Concept of  Code to Data Paradigm 
+ Creating CDS Entities
+
+--Break--
+
+CDS Associations
+Describing CDS View on View
+Making Virtual Data Model’s (VDM ) 
+Basic/Interface View
+Composite View
+Consumption View
+Describing CDS Angle
+Create your own OData Service on top of CDS Views
+
+Agenda Day : 7
+ 
+Create Fiori App  by CDS
+Elaborating  Uses of  CDS for Analytics
+Describing CDS Annotations 
+Object Model Annotations
+OData Annotations
+Analytical Annotations
+End User Annotations
+UI Annotations
+ 
+ --Break--
+
+S/4HANA  Embedded Analytics
+Query Browser
+ALP (Analytic List Page )
+OVP (Overview Page )
+Describing  (SAP Analytics Cloud ) SAC Consumption
+Making CDS DCL ( Authorization and Secure Programming ) 
+Understanding CDS Security
+
+Agenda Day : 8 
+
+CDS Table Functions
+CDS-BOPF Integration
+Describing Validation in ( Business Object ) BO 
+Implementation of  Smart filter UX Application
+Transactional  UX App with CDS and  BOPF
+ 
+--Break--
+
+ Hierarchy CDS Programming with Tree Table  
+New Hierarchy
+Classical Hierarchy
+Implementation of  End to End  Hierarchy Scenario of  Employee Manager Hierarchy by Fiori App
+Describing Functional Information of Hierarchy
+
+Agenda Day : 9
+
+Create Fiori App  with annotation File on Top of CDS
+Describing Details about Idoc
+Create your  OVP ( Overview page )  UX  Elements show Analytical dashboard
+
+--Break--
+
+Describing SAP Analytics Cloud ( SAC )
+Consume CDS in Analytics Cloud
+Creating Dashboard’s on top of CDS in Analytics Cloud
+
+Agenda Day : 10
+
+S/4HANA End to End PoC of  list report
+Describing Lifecycle of App
+Understanding Deployment of App’s
+ 
+--Break--
+
+S/4HANA End to End PoC of ALV IDA ( Integrated Data Access )
+Certification Guidance
+Q & A.
+
