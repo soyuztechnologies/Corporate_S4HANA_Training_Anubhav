@@ -1,0 +1,124 @@
+*&---------------------------------------------------------------------*
+*& Report YFUNCTION_DB
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+REPORT YFUNCTION_DB.
+
+
+data : itab type table of sflight,
+       wa like line of itab.
+
+select * from sflight into table itab where carrid = 'LH' and connid = '0400'.
+
+read table itab into wa with key carrid = 'LH' connid = '0400' fldate = '20130101' binary search.
+
+select * from sflight into table itab where carrid = 'LH' and connid = '0400'.
+
+
+delete adjacent duplicates from itab comparing carrid.
+
+loop at itab into wa.
+  AT NEW CARRID.
+  write : / wa-carrid, wa-connid.
+  endat.
+endloop.
+
+
+*&---------------------------------------------------------------------*
+*& Report ZAOH_INCOMPATIBLE_MATNR
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+REPORT ZAOH_INCOMPATIBLE_MATNR.
+
+**incompatible material types
+
+data: lv_matnr type char18, "char18 --> matnr
+      wa type matdoc.
+
+select SINGLE * FROM matdoc INTO wa WHERE matnr like 'A%'.
+lv_matnr = wa-matnr.
+
+WRITE : lv_matnr.
+
+*&---------------------------------------------------------------------*
+*& Report ZAOH_INCOMPATIBLE_TCODE
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+REPORT ZAOH_INCOMPATIBLE_TCODE.
+
+
+**incompatible tcode
+PARAMETERS : tr1 RADIOBUTTON GROUP g1,
+             tr2 RADIOBUTTON GROUP g1.
+data : lv_tcode type TCODE.
+
+IF tr1 = 'X'.
+ CALL TRANSACTION 'MB11' WITHOUT AUTHORITY-CHECK.
+ ""REPLACE WITH MB11 -> MIGO
+ELSE.
+  CALL TRANSACTION 'MATGRP03' WITHOUT AUTHORITY-CHECK. ""MATGRP03 -> WMATGRP03
+ENDIF.
+
+*&---------------------------------------------------------------------*
+*& Report ZAOH_INCOMPATIBLE_TYPES
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+REPORT ZAOH_INCOMPATIBLE_TYPES.
+
+
+**incompatible type
+data: lv_vbtyp type vbtyp VALUE 'L'. ""VBTYPL data type
+call function 'SD_SALESDOCUMENT_DISPLAY'
+  exporting
+    i_vbeln            = '0000011'
+    I_VBTYP_L          = lv_vbtyp
+ EXCEPTIONS
+   NO_AUTHORITY       = 1
+   OTHERS             = 2
+          .
+*if sy-subrc <> 0.
+** Implement suitable error handling here
+*endif.
+
+*&---------------------------------------------------------------------*
+*& Report ZAOH_OBSOLETE_TABLE
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+REPORT ZAOH_OBSOLETE_TABLE.
+
+"VBUK -> VBAK
+data: ls_vbak type VBUK,
+      lv_gbstk type gbstk.
+
+select SINGLE * from VBUK INTO ls_vbak.
+LV_GBSTK = ls_vbak-gbstk.
+
+IF sy-subrc = 0.
+  WRITE : lv_gbstk.
+ENDIF.
+
+*&---------------------------------------------------------------------*
+*& Report ZSOH_PRICING_COND_READ
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+REPORT ZSOH_PRICING_COND_READ.
+
+SELECT SINGLE * FROM KONV INTO @DATA(LS_KONV). "prcd_elements
+write : / LS_KONV-kawrt.
+
+*&---------------------------------------------------------------------*
+*& Report zsupplier_data_get
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+REPORT zsupplier_data_get.
+
+
+call TRANSACTION 'XK01'.
+
