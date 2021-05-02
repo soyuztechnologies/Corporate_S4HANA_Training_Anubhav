@@ -1,0 +1,213 @@
+*&---------------------------------------------------------------------*
+*& Report zcall_mar_procedureproxy
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+report zcall_mar_procedureproxy.
+
+data: lv_seg_key type ZIF_ZMAR_PP_PROXY=>iv_seg_key,
+      lt_cat_tab type table of ZIF_ZMAR_PP_PROXY=>it_cat_tab,
+      lt_work_tab type table of ZIF_ZMAR_PP_PROXY=>it_work_tab,
+      et_cat_tab type table of ZIF_ZMAR_PP_PROXY=>et_cat_tab.
+
+call database procedure zget_navigation_url
+  exporting
+    iv_seg_key  = lv_seg_key
+    it_work_tab = lt_work_tab
+    it_cat_tab  = lt_cat_tab
+  importing
+    et_cat_tab  = et_cat_tab
+  .
+
+
+class zcl_mar_amdp definition
+  public
+  final
+  create public .
+
+  public section.
+    interfaces if_amdp_marker_hdb.
+    class-methods get_oia exporting value(et_oia) type ztt_oia.
+  protected section.
+  private section.
+endclass.
+
+class zcl_mar_amdp implementation.
+  method get_oia by database procedure for hdb language sqlscript options read-only
+  using zdp_cust snwd_bpa snwd_so_inv_head snwd_so_inv_item.
+
+        declare lv_client nvarchar(3);
+        declare lv_today  date;
+        declare lv_max_amount decimal(15,2);
+        declare lv_open_days integer;
+        declare LV_TARGET_CURR nvarchar(4);
+
+        --Reading the customizing
+        select current_date into lv_today from dummy;
+
+        select mandt, max_open_days, max_amount, currency_code into
+                lv_client, lv_open_days, lv_max_amount, lv_target_curr from zdp_cust
+                where usrid = ( select Ucase(session_context('APPLICATIONUSER' )) from dummy );
+
+
+        --Compute the open days
+        --seconds_between(d1, d2) / (24 * 60 * 60) == Days
+        --d2 = to_timestamp(localtoutc(now(), 'CET'))
+        --d1 = to_timestamp(left(changed_at, 14), 'YYYYMMDDHHMISS')
+        --FLOOR(decimal) - Round Off
+
+        lt_days = select floor(seconds_between(to_timestamp(left(changed_at, 14), 'YYYYMMDDHHMISS'),
+                                     to_timestamp(localtoutc(now(), 'CET')))) / (24 * 60 * 60) as open_days,
+                   buyer_guid from snwd_so_inv_head where payment_status = '';
+
+        lt_open_days = select company_name, bp_id, avg(open_days) as open_days
+                        from :lt_days as t0 inner join snwd_bpa as t1 on
+                         t0.buyer_guid = t1.node_key group by company_name, bp_id;
+
+        --Compute the total open gross amount in common currency
+        lt_amount = select bpa.bp_id, sum(itm.gross_amount) as gross_amount, itm.currency_code
+                        from snwd_so_inv_item as itm inner join snwd_so_inv_head as head
+                        on itm.parent_key = head.node_key
+                        inner join snwd_bpa as bpa on
+                        head.buyer_guid = bpa.node_key
+                        where head.payment_status = ''
+                        group by bpa.bp_id, itm.currency_code;
+
+        lt_amount_conv = CE_CONVERSION(:lt_amount, [
+                                                        family = 'currency',
+                                                        method = 'ERP',
+                                                        steps  = 'shift, convert, shift_back',
+                                                        target_unit = :lv_target_curr,
+                                                        client = :lv_client,
+                                                        source_unit_column = 'CURRENCY_CODE',
+                                                        reference_date = :lv_today,
+                                                        output_unit_column = 'CONV_CURR_CODE'
+                                                    ] , [gross_amount]);
+
+        lt_gross_amount = select bp_id, sum(gross_amount) as gross_amount,
+                                        CONV_CURR_CODE as currency_code from :lt_amount_conv
+                                        group by bp_id, conv_curr_code;
+
+        et_oia = select lv_client as client,
+                     odays.bp_id, odays.company_name,
+                     odays.open_days,
+                     amt.gross_amount as gross_amount,
+                    amt.currency_code as currency_code,
+                    case when odays.open_days > :lv_open_days and amt.gross_amount > :lv_max_amount
+                        then 'X'
+                        else ''
+                        end as tagging
+                    from :lt_gross_amount as amt
+                    inner join :lt_open_days as odays on
+                    amt.bp_id = odays.bp_id
+                    ;
+
+  endmethod.
+
+endclass.
+
+
+@EndUserText.label : 'oia structure'
+@AbapCatalog.enhancementCategory : #NOT_EXTENSIBLE
+define structure zstruct_01 {
+  key client    : abap.char(3);
+  bp_id         : snwd_partner_id;
+  company_name  : snwd_company_name;
+  open_days     : abap.int4;
+  @Semantics.amount.currencyCode : 'zstruct_01.currency_code'
+  gross_amount  : snwd_ttl_gross_amount;
+  currency_code : snwd_curr_code;
+  tagging       : flag;
+
+}
+
+
+
+*&---------------------------------------------------------------------*
+*& Report zcall_mar_amdp
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+report zcall_mar_amdp.
+
+data: itab type ztt_oia.
+
+zcl_mar_amdp=>get_oia(
+  importing
+    et_oia =  itab
+).
+
+cl_demo_output=>display_data(
+  exporting
+    value = itab
+*    name  =
+).
+
+
+@AbapCatalog.sqlViewName: 'ZMARCDSBASIC'
+@AbapCatalog.compiler.compareFilter: true
+@AbapCatalog.preserveKey: true
+@AccessControl.authorizationCheck: #NOT_REQUIRED
+@EndUserText.label: 'Sales Data'
+define view ZMAR_CDS_BASIC as select from snwd_so {
+    //SNWD_SO
+    key node_key,
+    so_id,
+    created_by,
+    created_at,
+    currency_code,
+    gross_amount,
+    net_amount,
+    tax_amount,
+    overall_status,
+    payment_terms
+}
+
+
+
+*&---------------------------------------------------------------------*
+*& Report zmar_call_cds
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+report zmar_call_cds.
+
+data: ls_order type snwd_so.@AbapCatalog.viewEnhancementCategory: [#NONE]
+@AccessControl.authorizationCheck: #CHECK
+@EndUserText.label: 'Sales Order Entity'
+@Metadata.ignorePropagatedAnnotations: true
+@ObjectModel.usageType:{
+    serviceQuality: #X,
+    sizeCategory: #S,
+    dataClass: #MIXED
+}
+define view entity ZMAR_CDS_ENTITY_SO as select from snwd_so {
+    //SNWD_SO
+    key node_key,
+    so_id,
+    created_by,
+    created_at,
+    currency_code,
+    @Semantics.amount.currencyCode: 'currency_code'
+    gross_amount,
+    @Semantics.amount.currencyCode: 'currency_code'
+    net_amount,
+    @Semantics.amount.currencyCode: 'currency_code'
+    tax_amount,
+    overall_status,
+    payment_terms
+}
+
+
+
+select-options s_crat for ls_order-created_at.
+
+select * from ZMAR_CDS_BASIC where created_at in @s_crat into table @data(itab).
+
+cl_demo_output=>display_data(
+  exporting
+    value = itab
+*    name  =
+).
+
+

@@ -1,0 +1,81 @@
+1.  Complete OIA Scenario Code
+
+
+alter procedure getoia(out et_data table(
+											bp_id varchar(20),
+											company_name varchar(60),
+											open_days integer,
+											gross_amount decimal(10,2),
+											currency_code nvarchar(4),
+											tagging nvarchar(1)
+										)
+)
+default schema saphanadb
+as begin
+
+declare lv_client nvarchar(3);
+declare lv_today  date;
+declare lv_max_amount decimal(15,2);
+declare lv_open_days integer;
+declare LV_TARGET_CURR nvarchar(4);
+
+--Reading the customizing
+select current_date into lv_today from dummy;
+
+select mandt, max_open_days, max_amount, currency_code into
+		lv_client, lv_open_days, lv_max_amount, lv_target_curr from zdp_cust
+		where usrid = ( select Ucase(session_context('APPLICATIONUSER' )) from dummy );
+		
+
+--Compute the open days 
+--seconds_between(d1, d2) / (24 * 60 * 60) == Days 
+--d2 = to_timestamp(localtoutc(now(), 'CET'))
+--d1 = to_timestamp(left(changed_at, 14), 'YYYYMMDDHHMISS')
+--FLOOR(decimal) - Round Off
+
+lt_days = select floor(seconds_between(to_timestamp(left(changed_at, 14), 'YYYYMMDDHHMISS'),
+							 to_timestamp(localtoutc(now(), 'CET')))) / (24 * 60 * 60) as open_days,
+		   buyer_guid from snwd_so_inv_head where payment_status = '';
+	   
+lt_open_days = select company_name, bp_id, avg(open_days) as open_days
+				from :lt_days as t0 inner join snwd_bpa as t1 on 
+				 t0.buyer_guid = t1.node_key group by company_name, bp_id;
+							 
+--Compute the total open gross amount in common currency
+lt_amount = select bpa.bp_id, sum(itm.gross_amount) as gross_amount, itm.currency_code
+				from snwd_so_inv_item as itm inner join snwd_so_inv_head as head
+				on itm.parent_key = head.node_key 
+				inner join snwd_bpa as bpa on
+				head.buyer_guid = bpa.node_key
+				where head.payment_status = ''
+				group by bpa.bp_id, itm.currency_code;
+
+lt_amount_conv = CE_CONVERSION(:lt_amount, [
+												family = 'currency',
+												method = 'ERP',
+												steps  = 'shift, convert, shift_back',
+												target_unit = :lv_target_curr,
+												client = :lv_client,
+												source_unit_column = 'CURRENCY_CODE',
+												reference_date = :lv_today,
+												output_unit_column = 'CONV_CURR_CODE'
+											] , [gross_amount]);
+
+lt_gross_amount = select bp_id, sum(gross_amount) as gross_amount,
+							    CONV_CURR_CODE as currency_code from :lt_amount_conv
+							    group by bp_id, conv_curr_code;
+
+et_data = select odays.bp_id, odays.company_name, odays.open_days, amt.gross_amount as gross_amount,
+			amt.currency_code as currency_code, 
+			case when odays.open_days > :lv_open_days and amt.gross_amount > :lv_max_amount
+				then 'X' 
+				else '' 
+				end	as tagging 
+			from :lt_gross_amount as amt
+			inner join :lt_open_days as odays on 
+			amt.bp_id = odays.bp_id
+			;
+
+
+end;
+
