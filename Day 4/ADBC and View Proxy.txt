@@ -1,0 +1,70 @@
+*&---------------------------------------------------------------------*
+*& Report zjan_oia_adbc
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+REPORT zjan_oia_adbc.
+
+types: BEGIN OF ty_oia,
+        bp_id type snwd_bpa-bp_id,
+        company_name type snwd_bpa-company_name,
+        open_Days TYPE int4,
+        gross_amount type snwd_so_inv_head-gross_amount,
+       END OF TY_OIA.
+
+data: itab type TABLE of ty_oia,
+      wa   type          ty_oia,
+      tab_ref type REF TO data.
+
+get REFERENCE OF itab INTO tab_Ref.
+
+PARAMETERS p_cur type snwd_bpa-currency_code.
+data(lv_query) = |select bp_id, company_name,round(avg( open_days ),0) as open_days,| &&
+                 |sum( conv_amount ) as gross_Amount from | &&
+                 |"_SYS_BIC"."MOB5_DEC/CV_OIA"( 'PLACEHOLDER' = ('$$IM_CURR$$', '{ p_cur }')) | &&
+                 |group by bp_id, company_name|.
+
+try.
+"Step 1: Open a new connection to HANA DB
+data(lo_conn) = CL_SQL_CONNECTION=>get_connection( ).
+"Step 2: Build a Query object
+data(lo_statement) = lo_conn->create_statement( ).
+"Step 3: Prepare execution of Query
+data(lo_query) = lo_statement->execute_query(
+                   statement             = lv_query
+                 ).
+"Step 4: Which Data object we will receive data
+lo_query->set_param_table(
+  EXPORTING
+    itab_ref             = tab_Ref
+).
+
+"Step 5: Ask hana to run Query
+lo_query->next_package( ).
+
+"Step 6: Display to the user
+cl_demo_output=>display_data(
+  EXPORTING
+    value = itab
+*    name  =
+).
+catch CX_SQL_EXCEPTION INTO data(lo_exp).
+    WRITE : / lo_exp->get_text(  ).
+endtry.
+
+
+*&---------------------------------------------------------------------*
+*& Report zjan_oia_call_proxy
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+REPORT zjan_oia_call_proxy.
+
+select * from ZJAN_OIA_PROXY into table @data(itab).
+
+cl_demo_output=>display_data(
+  EXPORTING
+    value = itab
+*    name  =
+).
+
