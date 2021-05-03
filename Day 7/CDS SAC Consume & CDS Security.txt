@@ -1,0 +1,147 @@
+@AbapCatalog.sqlViewName: 'ZCDSSACMAR'
+@AbapCatalog.compiler.compareFilter: true
+@AbapCatalog.preserveKey: true
+@AccessControl.authorizationCheck: #CHECK
+@EndUserText.label: 'Sales Analytics view for Analytics Cloud'
+@VDM.viewType: #CONSUMPTION
+@Analytics.dataCategory: #CUBE
+@Analytics.dataExtraction.enabled: true
+@OData.publish: true
+define view ZSALES_SAC_MAR as select from SEPM_I_SalesOrderItem_E {
+    //sepm_i_salesorderitem_e
+    key SalesOrder as OrderId,
+    key SalesOrderItem as ItemId,
+    _SalesOrder._Customer.CompanyName as CustomerName,
+    Product,
+    @Semantics.currencyCode: true
+    TransactionCurrency as Currency,
+    @Semantics.amount.currencyCode: 'Currency'
+    @DefaultAggregation: #SUM
+    GrossAmountInTransacCurrency,
+    @Semantics.amount.currencyCode: 'Currency'
+    @DefaultAggregation: #SUM
+    NetAmountInTransactionCurrency,
+    @Semantics.amount.currencyCode: 'Currency'
+    @DefaultAggregation: #SUM
+    TaxAmountInTransactionCurrency,
+    @Semantics.amount.currencyCode: 'Currency'
+    @DefaultAggregation: #SUM
+    currency_conversion( amount => GrossAmountInTransacCurrency, 
+    source_currency => TransactionCurrency, 
+    target_currency => cast('EUR' as abap.cuky), 
+    exchange_rate_date => cast('20210410' as abap.dats) ) as ConvertedAmount,
+    ProductAvailabilityStatus as ProductStatus
+}
+
+
+
+
+@AbapCatalog.sqlViewName: 'ZMARCDSBUG'
+@AbapCatalog.compiler.compareFilter: true
+@AbapCatalog.preserveKey: true
+@AccessControl.authorizationCheck: #CHECK
+@EndUserText.label: 'buggy - limitation of cds'
+define view zmar_cds_buggy as select from crmd_partner as partner
+association[1] to but000 as _Bupa on $projection.partner_no = _Bupa.partner_guid
+ {
+    //partner
+    key client,
+    key partner_guid,
+    partner_fct,
+    partner_no,
+    _Bupa.bpkind,
+    _Bupa.partner_guid,
+    _Bupa.partgrptyp
+}
+
+
+@EndUserText.label: 'Table function example - CDS meets SQL Script'
+define table function ZMAR_TF_CDS
+with parameters 
+@Environment.systemField: #CLIENT
+p_client : abap.clnt
+returns {
+  client : abap.clnt;
+  partner_no : crmt_partner_no;
+  title: ad_title;
+  namefirst: bu_namep_f;
+  nametext: bu_name1tx;
+}
+implemented by method zcl_tf_mar=>crmd_partner_but000;
+
+
+class zcl_tf_mar definition
+  public
+  final
+  create public .
+
+  public section.
+
+    interfaces if_amdp_marker_hdb .
+    class-methods: crmd_partner_but000 for table function ZMAR_TF_CDS.
+
+  protected section.
+  private section.
+endclass.
+
+
+
+class zcl_tf_mar implementation.
+  method crmd_partner_but000 by database function for hdb language sqlscript
+  options read-only using crmd_partner but000.
+    return select sc.client as client,
+                  sc.partner_no as partner_no,
+                  sp.title as title,
+                  sp.name_first as namefirst,
+                  sp.name1_text as nametext
+                  from crmd_partner as sc
+                  inner join but000 as sp on
+                  sc.client = sp.client and
+                  sc.partner_no = sp.partner_guid
+                  where sc.client = :p_client;
+  endmethod.
+
+endclass.
+
+
+
+
+@AbapCatalog.sqlViewName: 'ZIBUPASEC'
+@AbapCatalog.compiler.compareFilter: true
+@AbapCatalog.preserveKey: true
+@AccessControl.authorizationCheck: #CHECK
+@EndUserText.label: 'Business Partners'
+@VDM.viewType: #BASIC
+@Analytics.dataCategory: #DIMENSION
+define view ZI_MAR_BUPA_SECURE as select from snwd_bpa as bpa
+association[1] to snwd_ad as _Address on
+$projection.address_guid = _Address.node_key 
+ {
+    //bpa
+    key node_key,
+    case bp_role 
+        when '01' then 'Customer'
+        when '02' then 'Supplier'
+        end as BPType,
+    address_guid,
+    bp_id,
+    company_name,
+    approval_status,
+    _Address.country as Country,
+    _Address.city as City
+}
+
+
+
+@EndUserText.label: 'DCL for view ZI_MAR_BUPA_SECURE'
+@MappingRole: true
+define role ZI_MAR_BUPA_SECURE {
+    grant 
+        select
+            on
+                ZI_MAR_BUPA_SECURE
+                    where
+                        (Country) = aspect pfcg_auth('ZMAR_2021', ZMAR_CNRTY, ACTVT = '03');
+                        
+}
+
