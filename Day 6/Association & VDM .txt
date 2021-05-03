@@ -1,0 +1,66 @@
+@AbapCatalog.sqlViewName: 'ZJANIBUPA'
+@AbapCatalog.compiler.compareFilter: true
+@AbapCatalog.preserveKey: true
+@AccessControl.authorizationCheck: #CHECK
+@EndUserText.label: 'Interface View, Business Partner'
+@VDM.viewType: #BASIC
+
+define view ZJAN_P_BUPA as select from snwd_bpa {
+    //snwd_bpa
+    key node_key as BPKey,
+    bp_role as BPRole,
+    email_address as EmailAddress,
+    address_guid as AddressKey,
+    bp_id as BPId,
+    company_name as CompanyName
+}
+
+
+@AbapCatalog.sqlViewName: 'ZJAN_BPADR'
+@AbapCatalog.compiler.compareFilter: true
+@AbapCatalog.preserveKey: true
+@AccessControl.authorizationCheck: #CHECK
+@EndUserText.label: 'Business Partner Address Data'
+@VDM.viewType: #BASIC
+define view ZJAN_I_BP_ADR as select from ZJAN_P_BUPA as BP
+inner join snwd_ad as Address on
+ BP.AddressKey = Address.node_key
+ {
+    //ZJAN_P_BUPA
+    key BPKey,
+    BPRole,
+    EmailAddress,
+    AddressKey,
+    BPId,
+    CompanyName,
+    Address.country,
+    Address.city
+}
+
+
+
+@AbapCatalog.sqlViewName: 'ZJANIBPD'
+@AbapCatalog.compiler.compareFilter: true
+@AbapCatalog.preserveKey: true
+@AccessControl.authorizationCheck: #CHECK
+@EndUserText.label: 'Address and Business Partner'
+@VDM.viewType: #BASIC
+@OData.publish: true
+define view ZJAN_I_BP_DATA as select from ZJAN_P_BUPA as BP
+association[0..1] to snwd_ad as _Address on
+BP.AddressKey = _Address.node_key
+{
+    //BP
+    key BPKey,
+    BPRole,
+    EmailAddress,
+    AddressKey,
+    BPId,
+    CompanyName,
+    /*Exposed Association */
+    _Address
+    /*Ad Hoc association */
+    //_Address.city
+}
+
+
