@@ -1,0 +1,326 @@
+@AbapCatalog.sqlViewName: 'ZMARCDSBO'
+@AbapCatalog.compiler.compareFilter: true
+@AbapCatalog.preserveKey: true
+@AccessControl.authorizationCheck: #CHECK
+@EndUserText.label: 'Our CDS BOPF Scenario'
+@VDM.viewType: #CONSUMPTION
+@OData.publish: true
+
+@ObjectModel:{
+    modelCategory: #BUSINESS_OBJECT,
+    compositionRoot: true,
+    transactionalProcessingEnabled: true,
+    createEnabled: true,
+    deleteEnabled: true,
+    updateEnabled: true,
+    writeActivePersistence: 'ZOFT_MEALS',
+    draftEnabled: true,
+    writeDraftPersistence: 'ZOFT_MAR_MEAL'
+}
+
+define view ZMAR_CDS_BOPF as select from zoft_meals
+association[1] to scarr as _Airlines
+on $projection.carrid = _Airlines.carrid
+association[1] to sflight as _FlightConn
+on $projection.carrid = _FlightConn.carrid and
+$projection.connid = _FlightConn.connid
+association[1] to smeal as _Meals on
+$projection.meal = _Meals.mealnumber
+ {
+    //zoft_meals
+    
+    @UI.facet: [
+    {
+        id:              'HeaderFacet',
+       purpose:         #HEADER,
+       type:            #FIELDGROUP_REFERENCE,
+       label:           'Object Page - Header Facet',
+       targetQualifier: 'Fieldgroup:HeaderItems', // Refers to lineItems with @UI.fieldGroup: [{qualifier: 'Fieldgroup:HeaderItems'}]
+       position:         10
+    },
+    {
+        id: 'FieldGroup1',
+        type: #FIELDGROUP_REFERENCE,
+        label: 'Flight Meal' ,
+        targetQualifier: 'FieldGroup1'     
+     }]
+     
+    @UI.fieldGroup: [{qualifier: 'Fieldgroup:HeaderItems'}]
+    key meal_id,
+    @UI.selectionField: [{position: 10 }]
+    @UI.lineItem: [{position: 10 }]
+    @UI.identification: [{position: 10 }]
+    @UI.fieldGroup: [{qualifier: 'FieldGroup1', position: 10 }]
+    @ObjectModel.foreignKey.association: '_Airlines'
+    carrid,
+    @UI.selectionField: [{position: 20 }]
+    @UI.lineItem: [{position: 20 }]
+    @UI.identification: [{position: 20 }]
+    @UI.fieldGroup: [{qualifier: 'FieldGroup1', position: 20 }]
+    connid,
+    @UI.lineItem: [{position: 30 }]
+    @UI.identification: [{position: 30 }]
+    @UI.fieldGroup: [{qualifier: 'FieldGroup1', position: 30 }]
+    meal,
+    @UI.lineItem: [{position: 40 }]
+    @UI.identification: [{position: 40 }]
+    @UI.fieldGroup: [{qualifier: 'FieldGroup1', position: 40 }]
+    total_seats,
+    @UI.lineItem: [{position: 50 }]
+    @UI.identification: [{position: 50 }]
+    @UI.fieldGroup: [{qualifier: 'FieldGroup1', position: 50 }]
+    status,
+    @UI.lineItem: [{position: 11 }]
+    @UI.identification: [{position: 11 }]
+    @UI.fieldGroup: [{qualifier: 'FieldGroup1', position: 11 }]
+    @ObjectModel.readOnly: true    
+    _Airlines.carrname,
+    _Airlines,
+    _FlightConn,
+    _Meals
+}
+
+
+@AbapCatalog.sqlViewName: 'ZMARCDSBO'
+@AbapCatalog.compiler.compareFilter: true
+@AbapCatalog.preserveKey: true
+@AccessControl.authorizationCheck: #CHECK
+@EndUserText.label: 'Our CDS BOPF Scenario'
+@VDM.viewType: #CONSUMPTION
+@OData.publish: true
+
+@ObjectModel:{
+    modelCategory: #BUSINESS_OBJECT,
+    compositionRoot: true,
+    transactionalProcessingEnabled: true,
+    createEnabled: true,
+    deleteEnabled: true,
+    updateEnabled: true,
+    writeActivePersistence: 'ZOFT_MEALS',
+    draftEnabled: true,
+    writeDraftPersistence: 'ZOFT_MAR_MEAL'
+}
+
+@Metadata.allowExtensions: true
+
+define view ZMAR_CDS_BOPF as select from zoft_meals
+association[1] to scarr as _Airlines
+on $projection.carrid = _Airlines.carrid
+association[1] to sflight as _FlightConn
+on $projection.carrid = _FlightConn.carrid and
+$projection.connid = _FlightConn.connid
+association[1] to smeal as _Meals on
+$projection.meal = _Meals.mealnumber
+ {
+    //zoft_meals
+    key meal_id,
+    @ObjectModel.foreignKey.association: '_Airlines'
+    carrid,
+    connid,
+    meal,
+    total_seats,
+    @EndUserText.label: 'Approval Status'
+    status,
+    _Airlines,
+    _FlightConn,
+    _Meals
+}
+
+
+
+@Metadata.layer: #CORE
+annotate view ZMAR_CDS_BOPF
+    with 
+{
+    @UI.facet: [
+    {
+        id:              'HeaderFacet',
+       purpose:         #HEADER,
+       type:            #FIELDGROUP_REFERENCE,
+       label:           'Object Page - Header Facet',
+       targetQualifier: 'Fieldgroup:HeaderItems', // Refers to lineItems with @UI.fieldGroup: [{qualifier: 'Fieldgroup:HeaderItems'}]
+       position:         10
+    },
+    {
+        id: 'FieldGroup1',
+        type: #FIELDGROUP_REFERENCE,
+        label: 'Flight Meal' ,
+        targetQualifier: 'FieldGroup1'     
+     }]
+     
+    @UI.fieldGroup: [{qualifier: 'Fieldgroup:HeaderItems'}]
+    meal_id;
+    @UI.selectionField: [{position: 10 }]
+    @UI.lineItem: [{position: 10 }]
+    @UI.identification: [{position: 10 }]
+    @UI.fieldGroup: [{qualifier: 'FieldGroup1', position: 10 }]
+    carrid;
+    @UI.selectionField: [{position: 20 }]
+    @UI.lineItem: [{position: 20 }]
+    @UI.identification: [{position: 20 }]
+    @UI.fieldGroup: [{qualifier: 'FieldGroup1', position: 20 }]
+    connid;
+    @UI.lineItem: [{position: 30 }]
+    @UI.identification: [{position: 30 }]
+    @UI.fieldGroup: [{qualifier: 'FieldGroup1', position: 30 }]
+    meal;
+    @UI.lineItem: [{position: 40 }]
+    @UI.identification: [{position: 40 }]
+    @UI.fieldGroup: [{qualifier: 'FieldGroup1', position: 40 }]
+    total_seats;
+    @UI.lineItem: [{position: 50, label: 'Approve', type: #FOR_ACTION, dataAction: 'BOPF:APPROVE' }]
+    @UI.identification: [{position: 50 }]
+    @UI.fieldGroup: [{qualifier: 'FieldGroup1', position: 50 }]
+    status;
+    
+}
+
+
+class ZCL_MAR_V_VALIDATE_CARRID definition
+  public
+  inheriting from /BOBF/CL_LIB_V_SUPERCL_SIMPLE
+  final
+  create public .
+
+public section.
+
+  methods /BOBF/IF_FRW_VALIDATION~EXECUTE
+    redefinition .
+protected section.
+private section.
+ENDCLASS.
+
+
+
+CLASS ZCL_MAR_V_VALIDATE_CARRID IMPLEMENTATION.
+  method /BOBF/IF_FRW_VALIDATION~EXECUTE.
+    data: lt_data type ZTMAR_CDS_BOPF.
+    "Step 1: Read the data which came from screen
+    io_read->retrieve(
+      exporting
+        iv_node                 = is_ctx-node_key
+        it_key                  = it_key
+       importing
+         et_data                 = lt_data
+    ).
+    "Step 2: Validate the data
+    read table lt_data into data(ls_data) index 1.
+    select single 'X' into @data(lv_exist) from scarr where carrid = @ls_Data-carrid.
+    "Step 3: Inform the BOPF is something is wrong
+    if ( lv_exist <> 'X' ).
+        "Thorw an error
+        if ( eo_message is initial ).
+            eo_message = /bobf/cl_frw_factory=>get_message(  ).
+        endif.
+        eo_message->add_message(
+          exporting
+            is_msg       = value #( msgid = 'ZANUBHAV_APR' msgno = '000' msgty = 'E'
+                                  msgv1 = ls_Data-carrid )
+             iv_node      = is_ctx-node_key
+             iv_key       = ls_data-key
+             iv_attribute = ZIF_MAR_CDS_BOPF_C=>sc_node_attribute-zmar_cds_bopf-carrid
+             iv_lifetime  = /bobf/cm_frw=>co_lifetime_transition
+        ).
+
+        append value #( key = ls_data-key ) to et_failed_key.
+    endif.
+  endmethod.
+ENDCLASS.
+
+
+class ZCL_MAR_A_APPROVE definition
+  public
+  inheriting from /BOBF/CL_LIB_A_SUPERCL_SIMPLE
+  final
+  create public .
+
+public section.
+
+  methods /BOBF/IF_FRW_ACTION~EXECUTE
+    redefinition .
+protected section.
+private section.
+ENDCLASS.
+
+CLASS ZCL_MAR_A_APPROVE IMPLEMENTATION.
+  method /BOBF/IF_FRW_ACTION~EXECUTE.
+
+    data: lt_data type ZTMAR_CDS_BOPF.
+    "Read data from the screen if needed
+    io_read->retrieve(
+      exporting
+        iv_node                 = is_ctx-node_key
+        it_key                  = it_key
+       importing
+         et_data                 = lt_data
+    ).
+
+    "Read the row as an object
+    loop at lt_data reference into data(lo_record).
+
+        lo_record->status = abap_true.
+
+        io_modify->update(
+          exporting
+            iv_node           = is_ctx-node_key
+            iv_key            = lo_record->key
+            iv_root_key       = lo_record->key
+            is_data           = lo_record
+            it_changed_fields = value #( ( ZIF_MAR_CDS_BOPF_C=>sc_node_attribute-zmar_cds_bopf-status ) )
+        ).
+*        catch /bobf/cx_frw_contrct_violation.
+
+    endloop.
+  endmethod.
+ENDCLASS.
+
+
+class ZCL_MAR_D_CALC_SEATS definition
+  public
+  inheriting from /BOBF/CL_LIB_D_SUPERCL_SIMPLE
+  final
+  create public .
+
+public section.
+
+  methods /BOBF/IF_FRW_DETERMINATION~EXECUTE
+    redefinition .
+protected section.
+private section.
+ENDCLASS.
+
+
+
+CLASS ZCL_MAR_D_CALC_SEATS IMPLEMENTATION.
+
+
+  method /BOBF/IF_FRW_DETERMINATION~EXECUTE.
+
+    data: lt_data type ZTMAR_CDS_BOPF.
+    "Read data from the screen if needed
+    io_read->retrieve(
+      exporting
+        iv_node                 = is_ctx-node_key
+        it_key                  = it_key
+       importing
+         et_data                 = lt_data
+    ).
+
+    "Read the row as an object
+    loop at lt_data reference into data(lo_record).
+
+        select single ( seatsmax_b + seatsmax_f ) into @lo_record->total_seats from sflight
+        where carrid = @lo_record->carrid and connid = @lo_record->connid.
+
+        io_modify->update(
+          exporting
+            iv_node           = is_ctx-node_key
+            iv_key            = lo_record->key
+            iv_root_key       = lo_record->key
+            is_data           = lo_record
+            it_changed_fields = value #( ( ZIF_MAR_CDS_BOPF_C=>sc_node_attribute-zmar_cds_bopf-total_seats ) )
+        ).
+*        catch /bobf/cx_frw_contrct_violation.
+    endloop.
+  endmethod.
+ENDCLASS.

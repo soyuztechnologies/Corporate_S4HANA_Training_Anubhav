@@ -1,0 +1,170 @@
+
+@AbapCatalog.sqlViewName: 'ZEMP_HAPR'
+@AbapCatalog.compiler.compareFilter: true
+@AbapCatalog.preserveKey: true
+@AccessControl.authorizationCheck: #CHECK
+@EndUserText.label: 'Employee Manage Table'
+define view ZAPR_CDS_EMP_MGR as select from zoft_emp_mgr
+association[1..*] to ZAPR_CDS_EMP_MGR as _Manager on
+$projection.managerid = _Manager.empid
+ {
+//zoft_emp_mgr
+key empid,
+key empname,
+managerid,
+costcenter,
+_Manager    
+}
+
+define hierarchy ZAPR_EMP_MGR_NEW_H 
+  as parent child hierarchy (
+    source ZAPR_CDS_EMP_MGR
+    child to parent association _Manager
+    siblings order by empid ascending
+    multiple parents not allowed
+  )
+{
+    empid,
+    empname,
+    managerid,
+    $node.hierarchy_is_cycle as hier_cycle,
+    $node.hierarchy_is_orphan as orphan,
+    $node.hierarchy_level as hier_level,
+    $node.hierarchy_parent_rank as parent_rank,
+    $node.hierarchy_rank as rank,
+    $node.hierarchy_tree_size as hier_size
+    
+}
+
+
+
+*&---------------------------------------------------------------------*
+*& Report zread_apr_manager
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+report zread_apr_manager.
+
+parameters : mgrid type pernr_d.
+
+select * from hierarchy_descendants( source ZAPR_EMP_MGR_NEW_H
+start where managerid = @mgrid
+ ) into table @data(itab).
+
+ Loop at itab into data(wa).
+     write: / wa-empid, wa-empname.
+ endloop.
+
+
+
+@AbapCatalog.sqlViewName: 'ZAPR_EMGR'
+@AbapCatalog.compiler.compareFilter: true
+@AbapCatalog.preserveKey: true
+@AccessControl.authorizationCheck: #CHECK
+@EndUserText.label: 'Employee Manager Private View'
+@VDM.viewType: #BASIC
+@Analytics.dataCategory: #DIMENSION
+@VDM.private: true
+define view ZEMP_P_APR as select from zoft_emp_mgr {
+    //zoft_emp_mgr
+    key empid,
+    key empname,
+    managerid,
+    costcenter
+}
+
+
+@AbapCatalog.sqlViewName: 'ZEMPISELF'
+@AbapCatalog.compiler.compareFilter: true
+@AbapCatalog.preserveKey: true
+@AccessControl.authorizationCheck: #CHECK
+@EndUserText.label: 'self reference view with manager employee'
+@VDM.viewType: #BASIC
+@Analytics.dataCategory: #DIMENSION
+@hierarchy.parentChild: [{
+    name: 'EmployeeMgr',
+    recurse: { parent: ['Manager' ], child: ['Employee'] }
+ }]
+
+define view zemp_i_self as select from ZEMP_P_APR
+association[1..*] to ZEMP_P_APR as _Manager on
+$projection.empid = _Manager.empid
+ {
+//ZEMP_P_APR
+@ObjectModel.text.element: ['EmployeeName']
+key ZEMP_P_APR.empid as Employee,
+@Semantics.text: true
+ZEMP_P_APR.empname as EmployeeName,
+ZEMP_P_APR.managerid as Manager,
+ZEMP_P_APR.costcenter as CostCenter,
+_Manager
+}
+
+
+
+@AbapCatalog.sqlViewName: 'ZAPRCOEMP'
+@AbapCatalog.compiler.compareFilter: true
+@AbapCatalog.preserveKey: true
+@AccessControl.authorizationCheck: #CHECK
+@EndUserText.label: 'Employee Hours CUBE'
+@VDM.viewType: #COMPOSITE
+@Analytics.dataCategory: #CUBE
+@Analytics.dataExtraction.enabled: true
+define view ZEMP_CO_APR_HRS as select from zoft_emp_hrs
+association[1] to zemp_i_self as _Employee on
+$projection.empid = _Employee.Employee
+ {
+//zoft_emp_hrs
+key empid,
+@DefaultAggregation: #SUM
+@EndUserText.label: 'Planned Effort'
+planned,
+@DefaultAggregation: #SUM
+@EndUserText.label: 'Recorded Effort'
+recorded,
+_Employee,
+_Employee.CostCenter,
+_Employee.EmployeeName
+    
+}
+
+
+
+@AbapCatalog.sqlViewName: 'ZCAPREMP'
+@AbapCatalog.compiler.compareFilter: true
+@AbapCatalog.preserveKey: true
+@AccessControl.authorizationCheck: #CHECK
+@EndUserText.label: 'Analytic Query Employee Hours with Hier'
+@Analytics.query: true
+@Analytics.dataExtraction.enabled: true
+@VDM.viewType: #CONSUMPTION
+@OData.publish: true
+define view ZEMP_C_APR_HRS as select from ZEMP_CO_APR_HRS {
+    //ZEMP_CO_APR_HRS
+    @AnalyticsDetails.query:{
+        displayHierarchy: #ON,
+        hierarchyInitialLevel: 2,
+        axis: #ROWS,
+        totals: #HIDE,
+        display: #KEY_TEXT
+    }
+    key empid,
+    planned,
+    recorded,
+    CostCenter,
+    @EndUserText.label: 'Employee Name'
+    EmployeeName,
+    @AnalyticsDetails.query.formula: 'recorded * 100 / planned'
+    @EndUserText.label: 'Effort Utilization'
+    0 as EffortUtilization
+}
+
+
+
+
+
+
+
+
+
+
