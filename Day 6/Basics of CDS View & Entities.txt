@@ -1,0 +1,152 @@
+@AbapCatalog.sqlViewName: 'ZJOKER'
+@AbapCatalog.compiler.compareFilter: true
+@AbapCatalog.preserveKey: true
+@AccessControl.authorizationCheck: #CHECK
+@EndUserText.label: 'Basic CDS View'
+define view ZCDS_JAN_BASIC with parameters
+p_role: abap.char(2)
+ as select from snwd_bpa {
+    //snwd_bpa
+    key node_key,
+    case bp_role 
+        when '01' then 'Customer'
+        else 'Supplier' end as bp_role,
+    bp_id,
+    company_name
+} where bp_role = $parameters.p_role
+
+
+
+*&---------------------------------------------------------------------*
+*& Report zcall_jan_cds_view
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+REPORT zcall_jan_cds_view.
+
+data : ls_bp type snwd_bpa.
+SELECT-OPTIONS : s_bp for ls_bp-bp_id.
+PARAMETERS : prole TYPE c LENGTH 2.
+
+select * from ZCDS_JAN_BASIC( p_role = @prole ) into table @data(itab)
+where bp_id in @s_bp.
+
+cl_demo_output=>display_data(
+  EXPORTING
+    value = itab
+*    name  =
+).
+
+
+@AbapCatalog.sqlViewAppendName: 'ZCDSJANEXT'
+@EndUserText.label: 'Extend My Standard View'
+extend view ZCDS_JAN_BASIC with ZCDS_JAN_EXTENSION {
+    $parameters.p_role as Zrole,
+    email_address as zemail
+}
+
+
+*** Entities
+
+@AbapCatalog.viewEnhancementCategory: [#NONE]
+@AccessControl.authorizationCheck: #CHECK
+@EndUserText.label: 'Parameterized CDS with aggregation'
+@Metadata.ignorePropagatedAnnotations: true
+@ObjectModel.usageType:{
+    serviceQuality: #X,
+    sizeCategory: #S,
+    dataClass: #MIXED
+}
+//parameterized CDS view where p_stat is a parameter
+define view entity ZMAR_CDS_PARAMS with parameters
+p_stat : snwd_so_oa_status_code
+ as select from snwd_so {
+    
+    key buyer_guid,
+    key created_by,
+    @Semantics.amount.currencyCode: 'currency_code'
+    //This is an aggregate function used inside cds
+    sum(gross_amount) as gross_amount,
+    currency_code
+    
+} where overall_status = $parameters.p_stat group by buyer_guid, created_by, currency_code
+
+
+
+@AbapCatalog.viewEnhancementCategory: [#PROJECTION_LIST]
+@AccessControl.authorizationCheck: #CHECK
+@EndUserText.label: 'Base View'
+@Metadata.ignorePropagatedAnnotations: true
+@ObjectModel.usageType:{
+    serviceQuality: #X,
+    sizeCategory: #S,
+    dataClass: #MIXED
+}
+define view entity ZMAR_CDS_BASE with parameters
+p_type: snwd_business_partner_role
+ as select from snwd_bpa {
+    //snwd_bpa
+    key node_key,
+    bp_role,
+    bp_id,
+    company_name
+} where bp_role = $parameters.p_type
+
+
+
+@AbapCatalog.viewEnhancementCategory: [#NONE]
+@AccessControl.authorizationCheck: #CHECK
+@EndUserText.label: 'View on view concept'
+@Metadata.ignorePropagatedAnnotations: true
+@ObjectModel.usageType:{
+    serviceQuality: #X,
+    sizeCategory: #S,
+    dataClass: #MIXED
+}
+//View on view passing parameters and Join together
+define view entity ZMAR_CDS_VOV as select from ZMAR_CDS_BASE( p_type : '01' ) as Base
+inner join snwd_so as SalesOrders on
+Base.node_key = SalesOrders.buyer_guid {
+    //ZMAR_CDS_BASE
+    key Base.node_key,
+    key SalesOrders.so_id,
+    Base.bp_role,
+    Base.bp_id,
+    Base.company_name,
+    @Semantics.amount.currencyCode: 'CurrencyCode'
+    SalesOrders.gross_amount,
+    SalesOrders.currency_code as CurrencyCode
+}
+
+
+
+extend view entity ZMAR_CDS_BASE with {
+    snwd_bpa.email_address,
+    snwd_bpa.fax_number,
+    case snwd_bpa.bp_role 
+        when '01' then 'Customer'
+        when '02' then 'Supplier'
+        else 'dont know' end as bp_kind
+}
+
+
+@AbapCatalog.sqlViewName: 'ZMARCDSVOV'
+@AbapCatalog.compiler.compareFilter: true
+@AbapCatalog.preserveKey: true
+@AccessControl.authorizationCheck: #CHECK
+@EndUserText.label: 'CDS view for VoV'
+define view ZMAR_CDSV_VOV as select from ZMAR_CDS_BASE( p_type : '01' ) as Base
+inner join snwd_so as SalesOrders on
+Base.node_key = SalesOrders.buyer_guid {
+    //ZMAR_CDS_BASE
+    key Base.node_key,
+    key so_id,
+    bp_role,
+    bp_id,
+    company_name,    
+    gross_amount,
+    currency_code as CurrencyCode
+}
+
+
+
