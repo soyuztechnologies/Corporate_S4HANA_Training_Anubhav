@@ -1,0 +1,232 @@
+@EndUserText.label : 'Covid Dataset'
+@AbapCatalog.enhancementCategory : #NOT_CLASSIFIED
+@AbapCatalog.tableCategory : #TRANSPARENT
+@AbapCatalog.deliveryClass : #A
+@AbapCatalog.dataMaintenance : #ALLOWED
+define table zcovid {
+  key mandt             : mandt not null;
+  key entry_id          : zzentry not null;
+  key date_announced    : datum not null;
+  key detected_district : char60 not null;
+  key detected_state    : char60 not null;
+  key state_code        : char3 not null;
+  num_cases             : zznum;
+  current_status        : char50;
+
+}
+
+
+@AbapCatalog.sqlViewName: 'ZCUBECOVID'
+@AbapCatalog.compiler.compareFilter: true
+@AbapCatalog.preserveKey: true
+@AccessControl.authorizationCheck: #CHECK
+@EndUserText.label: 'Covid Cube'
+@Analytics.dataCategory: #CUBE
+define view ZCO_COVID_CUBE as select from zcovid {
+    //zcovid
+    key entry_id,
+    key date_announced,
+    key detected_district,
+    key detected_state,
+    key state_code,
+    @DefaultAggregation: #SUM
+    num_cases,
+    current_status
+}
+
+
+
+@AbapCatalog.sqlViewName: 'ZCNAACO'
+@AbapCatalog.compiler.compareFilter: true
+@AbapCatalog.preserveKey: true
+@AccessControl.authorizationCheck: #CHECK
+@EndUserText.label: 'Consumption View, Analytic Query'
+@VDM.viewType: #CONSUMPTION
+@OData.publish: true
+@Analytics.query: true
+@UI.chart: [{
+    qualifier: 'cases_by_date',
+    chartType: #COLUMN_STACKED,
+    description: 'Cases by Dates per State',
+    dimensions: ['detected_state', 'date_announced'],
+    dimensionAttributes: [{dimension: 'detected_state', role: #SERIES },
+    {dimension: 'date_announced',role: #CATEGORY}],
+    measures: ['num_cases'],
+    measureAttributes: [{measure: 'num_cases', role: #AXIS_1 }]
+ }]
+ @UI.presentationVariant: [{
+    qualifier: 'AnubhavOberoy',
+    visualizations: [{type: #AS_CHART, qualifier: 'cases_by_date' }]
+  }]
+
+define view ZC_COVID_DATA as select from ZCO_COVID_CUBE {
+    //ZCO_COVID_CUBE
+    key entry_id,
+    @UI.selectionField: [{position: 10 }]
+    @UI.identification: [{position: 10 }]
+    @UI.lineItem: [{position: 10 }]
+    key date_announced,
+    @UI.identification: [{position: 20 }]
+    @UI.lineItem: [{position: 20 }]
+    key detected_district,
+    @UI.selectionField: [{position: 20 }]
+    @UI.identification: [{position: 30 }]
+    @UI.lineItem: [{position: 30 }]
+    key detected_state,
+    @UI.identification: [{position: 40 }]
+    @UI.lineItem: [{position: 40 }]
+    key state_code,
+    @UI.identification: [{position: 50 }]
+    @UI.lineItem: [{position: 50 }]
+    num_cases,
+    @UI.identification: [{position: 30 }]
+    @UI.lineItem: [{position: 60 }]
+    current_status
+}
+
+
+
+@AbapCatalog.sqlViewName: 'ZICDS_BUPA'
+@AbapCatalog.compiler.compareFilter: true
+@AbapCatalog.preserveKey: true
+@AccessControl.authorizationCheck: #CHECK
+@EndUserText.label: 'test bupa'
+@VDM.viewType: #BASIC
+define view zi_cds_bupa as select from snwd_bpa
+association[1] to snwd_ad as _Address on
+$projection.AddressId = _Address.node_key
+ {
+    //snwd_bpa 
+    key node_key as BuyerGuid, 
+    bp_role as BpRole, 
+    email_address, 
+    address_guid as AddressId, 
+    bp_id as BuyerCode, 
+    company_name as CompanyName, 
+    _Address.city as city,
+    _Address.country as Country,
+    _Address.building as Building,
+    approval_status,
+    _Address
+}
+
+
+*&---------------------------------------------------------------------*
+*& Report zapr_ida_alv
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+report zapr_ida_alv.
+
+data: ls_bpa type snwd_bpa.
+
+select-options s_bp for ls_bpa-bp_id.
+
+data(lo_alv) = cl_salv_gui_table_ida=>create_for_cds_view(
+                 iv_cds_view_name      = 'ZI_CDS_BUPA'
+               ).
+
+"Prepare Selection criteria
+data(lo_collector) = new cl_salv_range_tab_collector( ).
+lo_collector->add_ranges_for_name(
+  exporting
+    iv_name   = 'BUYERCODE'
+    it_ranges =  s_bp[]
+).
+lo_collector->get_collected_ranges(
+  importing
+    et_named_ranges = data(lt_range)
+).
+lo_alv->set_select_options(
+  exporting
+    it_ranges    = lt_range
+*    io_condition =
+).
+
+"Define the list of fields - field catalog
+lo_alv->field_catalog(  )->get_available_fields(
+  importing
+    ets_field_names = data(lt_fieldcat)
+).
+
+delete lt_fieldcat where table_line cp '*KEY'.
+delete lt_fieldcat where table_line cp '*GUID'.
+delete lt_fieldcat where table_line cp '*ID'.
+
+lo_alv->field_catalog(  )->set_available_fields( its_field_names = lt_fieldcat ).
+
+"Change field catalog labels
+lo_alv->field_catalog(  )->set_field_header_texts(
+  exporting
+    iv_field_name        = 'BUILDING'
+    iv_header_text       = 'premesis no'
+).
+lo_alv->field_catalog(  )->disable_sort( iv_field_name = 'COUNTRY' ).
+
+lo_alv->display_options(  )->set_title( iv_title = |My New ALV with IDA| ).
+lo_alv->display_options(  )->enable_alternating_row_pattern( ).
+
+"Change Sort Order
+*lo_alv->default_layout( )->set_sort_order( it_sort_order = value #( (
+*    field_name = 'COMPANYNAME'
+*    is_grouped = abap_true
+*    descending = abap_false
+* ) ) ).
+
+ "Hide print function
+ lo_alv->standard_functions( )->set_print_active( iv_active = abap_false ).
+
+ "Selection mode
+ lo_alv->selection(  )->set_selection_mode(
+      iv_mode = if_salv_gui_selection_ida=>cs_selection_mode-single
+ ).
+
+ lo_alv->toolbar(  )->add_button(
+   exporting
+     iv_fcode                     = 'OPEN_DETAIL'
+      iv_text                      = 'Display'
+      iv_before_standard_functions = abap_true
+ ).
+
+ perform set_handler.
+
+ lo_alv->fullscreen(  )->display(  ).
+
+ class lcl_event_handler definition create private.
+
+    public section.
+        class-methods toolbar_selected for event function_selected of if_salv_gui_toolbar_ida
+        importing ev_fcode.
+
+
+ endclass.
+
+ class lcl_event_handler implementation.
+
+    method toolbar_selected.
+        data: ls_row type zi_cds_bupa.
+        case ev_fcode.
+          when 'OPEN_DETAIL'.
+            if lo_alv->selection(  )->is_row_selected(  ) = abap_true.
+                lo_alv->selection(  )->get_selected_row(
+                  importing
+                    es_row               = ls_row
+                ).
+                cl_salv_ida_show_data_row=>display(
+                  exporting
+*                    iv_text =
+                    is_data = ls_row
+                ).
+            endif.
+        endcase.
+
+    endmethod.
+
+ endclass.
+
+ form set_handler.
+
+     set handler lcl_event_handler=>toolbar_selected for lo_alv->toolbar( ).
+
+ endform.
+
