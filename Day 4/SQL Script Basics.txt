@@ -1,0 +1,108 @@
+1. A Simple query to read system parameters and current session schema
+
+select current_schema, current_user, current_date,
+	   session_context('APPLICATIONUSER'),
+		add_months(current_date,-2) as new_date
+ from dummy;
+
+
+2. First Anonymous block to test SUM of 2 numbers
+
+do begin
+
+--coda this is a commented code
+declare x integer;
+declare y integer;
+DECLARE z integer;
+
+x := 10;
+y := 20;
+z := :x + :y;
+
+select :z from dummy;
+
+end
+
+
+3. Using parameters (works latest hana 2.0)
+
+do (IN x integer => ?, IN y integer => ?) begin
+
+--coda this is a commented code
+DECLARE z integer;
+
+z := :x + :y;
+
+select :z from dummy;
+
+end
+
+4. Create a procedure
+
+create procedure addnums (IN x integer, IN y integer) 
+language sqlscript
+as begin
+
+--coda this is a commented code
+DECLARE z integer;
+
+z := :x + :y;
+
+select :z from dummy;
+
+
+end
+
+CALL addnums(10,20);
+
+5. Change a procedure
+
+alter procedure addnums (IN x integer, IN y integer) 
+language sqlscript
+as begin
+
+--coda this is a commented code
+DECLARE z integer;
+
+z := :x - :y;
+
+select :z from dummy;
+
+
+end
+
+
+6. If condition example
+
+create procedure checkevenodd (IN x integer, OUT status varchar(10)) 
+language sqlscript
+as begin
+
+if(mod(x , 2) = 0) then
+	status = 'Even';
+else
+	status = 'Odd';
+end if;
+
+end
+
+
+7. DDL and DML with loop
+
+create procedure ddlexam (IN rec integer) 
+language sqlscript
+as begin
+declare i integer;
+create column table zempmar(
+							empid integer,
+							empname varchar(80),
+							primary key(empid)
+);
+
+for i in 1..:rec do
+
+insert into zempmar values (:i, 'Employee ' || :i);
+
+end for;
+
+end
