@@ -1,0 +1,293 @@
+8. Exception handling for the SQL code when code is known
+
+alter procedure ddlexam (IN rec integer) 
+language sqlscript
+as begin
+declare i integer;
+
+DECLARE EXIT HANDLER FOR SQL_ERROR_CODE 288
+	SELECT 'Dude, You are creating a duplicate table' from dummy;
+	
+create column table zempmar(
+							empid integer,
+							empname varchar(80),
+							primary key(empid)
+);
+
+for i in 1..:rec do
+
+insert into zempmar values (:i, 'Employee ' || :i);
+
+end for;
+
+end
+
+9. Generically handle errors whereever, whenever they come
+
+alter procedure ddlexam (IN rec integer) 
+language sqlscript
+as begin
+declare i integer;
+
+DECLARE EXIT HANDLER FOR SQLEXCEPTION
+	SELECT 'Internal Error Occurred, Contact Developer',
+			::SQL_ERROR_CODE, ::SQL_ERROR_MESSAGE
+	 from dummy;
+	
+create column table zempmar(
+							empid integer,
+							empname varchar(80),
+							primary key(empid)
+);
+
+for i in 1..:rec do
+
+insert into zempmar values (:i, 'Employee ' || :i);
+
+end for;
+
+end
+
+
+10. Scalar UDF - because it returns a single value
+
+
+CREATE FUNCTION areaofcircle(radius integer)
+returns area decimal(10,2)
+as begin
+
+area = 3.14 * radius * radius;
+
+end;
+
+Calling function
+select areaofcircle(11) from dummy;
+
+
+11. Table UDF
+
+
+CREATE FUNCTION getCustomers()
+returns table(bp_id varchar(80), 
+			  company_name varchar(100))
+default schema saphanadb			  
+as begin
+
+lt_bp = select * from snwd_bpa;
+
+return select bp_id, company_name from :lt_bp where
+bp_role = '01';
+
+end;
+
+
+Test
+select * from getCustomers()
+
+
+12. Basics of an Array
+
+create procedure prepareArray(out val varchar(40))
+as begin
+
+declare arr tinyint array = array(1,3,2);
+declare arrFruits varchar(40) array = array('Apple','banana','cherry');
+
+val := :arrFruits[:arr[2]];
+
+end;
+
+
+13.Simple Cursor
+
+create procedure cursorDemo(out p1 varchar(40), out p2 varchar(40))
+default schema saphanadb
+as begin
+
+declare wa varchar(40);
+--declare the cursor and assign a query to it
+declare cursor c1 for select product_id from snwd_pd;
+--Open the cursor
+open c1;
+--Fetch the data
+fetch c1 into wa;
+--Return data 
+p1 = wa;
+
+fetch c1 into wa;
+p2 = wa;
+
+end;
+
+14. Parameterized cursor
+
+alter procedure cursorDemo(in cat varchar(40),
+out p1 varchar(40), out p2 varchar(40))
+default schema saphanadb
+as begin
+
+declare wa varchar(40);
+--declare the cursor and assign a query to it
+declare cursor c1(icat varchar(40))
+	 for select product_id from snwd_pd where category = :icat;
+--Open the cursor
+open c1(:cat);
+--Fetch the data
+fetch c1 into wa;
+--Return data 
+p1 = wa;
+
+fetch c1 into wa;
+p2 = wa;
+
+end;
+
+15. Working with cursor along a loop
+
+alter procedure cursorDemo(in cat varchar(40),
+out p1 varchar(40), out p2 varchar(40))
+default schema saphanadb
+as begin
+
+declare products varchar(40) array;
+declare price decimal(5,2) array;
+--declare the cursor and assign a query to it
+declare cursor c1(icat varchar(40))
+	 for select product_id, price from snwd_pd where category = :icat;
+
+--when we use cursor with loop
+--it automatically opens and close cursor
+--also it will loop over everything as per DB
+--Loop at itab into wa
+for wa as c1(:cat) do
+	products[c1::rowcount] = wa.product_id;
+	price[c1::rowcount] = wa.price;
+end for;
+
+select :products, :price from dummy;
+
+end;
+
+16. How to use unnest function to export data out as array cannot be exported
+
+
+alter procedure cursorDemo(in cat varchar(40),
+						   out et_data table(
+						   		product_id varchar(40),
+						   		price decimal(10,2),
+						   		mrp decimal(10,2)
+						   )
+)
+default schema saphanadb
+as begin
+
+declare products varchar(40) array;
+declare price decimal(10,2) array;
+declare lv_mrp decimal(10,2);
+declare MRP decimal(10,2) array;
+--declare the cursor and assign a query to it
+declare cursor c1(icat varchar(40))
+	 for select product_id, price from snwd_pd where category = :icat;
+
+--when we use cursor with loop
+--it automatically opens and close cursor
+--also it will loop over everything as per DB
+--Loop at itab into wa
+for wa as c1(:cat) do
+	products[c1::rowcount] = wa.product_id;
+	select round(wa.price, 2) into lv_mrp from dummy;
+	price[c1::rowcount] = :lv_mrp;
+	select round(wa.price * 118 / 100, 2) into lv_mrp from dummy;
+	mrp[c1::rowcount] := :lv_mrp;
+end for;
+
+--select :products, :price, :mrp from dummy;
+--moves data from single column table to multi-dimension table
+et_data = unnest(:products, :price, :mrp) as (product_id, price, mrp);
+
+end;
+
+17. Create a re-usable table type
+
+create type tt_anubhav as table(
+						   		product_id varchar(40),
+						   		price decimal(10,2),
+						   		mrp decimal(10,2)
+						   )
+
+
+18. Using the table type in FM to create output table
+
+
+alter procedure cursorDemo(in cat varchar(40),
+						   out et_data mob5.tt_anubhav
+)
+default schema saphanadb
+as begin
+
+declare products varchar(40) array;
+declare price decimal(10,2) array;
+declare lv_mrp decimal(10,2);
+declare MRP decimal(10,2) array;
+--declare the cursor and assign a query to it
+declare cursor c1(icat varchar(40))
+	 for select product_id, price from snwd_pd where category = :icat;
+
+--when we use cursor with loop
+--it automatically opens and close cursor
+--also it will loop over everything as per DB
+--Loop at itab into wa
+for wa as c1(:cat) do
+	products[c1::rowcount] = wa.product_id;
+	select round(wa.price, 2) into lv_mrp from dummy;
+	price[c1::rowcount] = :lv_mrp;
+	select round(wa.price * 118 / 100, 2) into lv_mrp from dummy;
+	mrp[c1::rowcount] := :lv_mrp;
+end for;
+
+--select :products, :price, :mrp from dummy;
+--moves data from single column table to multi-dimension table
+et_data = unnest(:products, :price, :mrp) as (product_id, price, mrp);
+
+end;
+
+19. Basics of internal table, Implicit declaration, Data-intensive logic
+
+create procedure basicItab(in cat varchar(40),tax integer,
+						   out et_data mob5.tt_anubhav
+)
+default schema saphanadb
+as begin
+
+declare reccount integer;
+declare i integer;
+declare lv_mrp decimal(10,2);
+--Implicit internal table
+lt_products = select product_id, price from snwd_pd;
+
+reccount = record_count(:lt_products);
+--loop at internal table
+for i in 1..:reccount do
+--inside the loop access values 1 by 1
+lv_mrp = :lt_products.price[i] * (100 + tax) / 100;
+
+:et_data.insert(
+				( :lt_products.product_id[i],
+				  :lt_products.price[i],
+				  :lv_mrp
+				), 
+			   :i);
+
+end for;
+
+
+end;
+
+
+
+
+
+
+
+
+

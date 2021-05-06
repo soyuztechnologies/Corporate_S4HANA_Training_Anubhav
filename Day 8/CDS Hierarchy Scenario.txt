@@ -1,4 +1,3 @@
-
 @AbapCatalog.sqlViewName: 'ZEMP_HAPR'
 @AbapCatalog.compiler.compareFilter: true
 @AbapCatalog.preserveKey: true

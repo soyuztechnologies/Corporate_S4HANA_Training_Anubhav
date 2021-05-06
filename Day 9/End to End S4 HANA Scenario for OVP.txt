@@ -1,0 +1,145 @@
+@AbapCatalog.viewEnhancementCategory: [#NONE]
+@AccessControl.authorizationCheck: #CHECK
+@EndUserText.label: 'Return Maximum Counter'
+@Metadata.ignorePropagatedAnnotations: true
+@ObjectModel.usageType:{
+    serviceQuality: #X,
+    sizeCategory: #S,
+    dataClass: #MIXED
+}
+define view entity ZAPR_I_EDIDS_MAX as select from edids {
+    key docnum,
+    max( countr ) as countr
+} group by docnum
+
+
+@AbapCatalog.viewEnhancementCategory: [#NONE]
+@AccessControl.authorizationCheck: #CHECK
+@EndUserText.label: 'Status Record'
+@Metadata.ignorePropagatedAnnotations: true
+@ObjectModel.usageType:{
+    serviceQuality: #X,
+    sizeCategory: #S,
+    dataClass: #MIXED
+}
+define view entity ZAPR_I_EDIDS as select from edids
+inner join ZAPR_I_EDIDS_MAX as _MaxRecord
+on edids.docnum = _MaxRecord.docnum and edids.countr = _MaxRecord.countr
+ {
+    key edids.docnum,
+    key edids.countr,
+    edids.status,
+    edids.statxt,
+    edids.stapa1,
+    edids.stapa2,
+    edids.stapa3,
+    edids.stapa4,
+    edids.stamid,
+    edids.stamno
+}
+
+
+
+@AbapCatalog.viewEnhancementCategory: [#NONE]
+@AccessControl.authorizationCheck: #CHECK
+@EndUserText.label: 'IDoc Control and Status Reocrd'
+@Metadata.ignorePropagatedAnnotations: true
+@ObjectModel.usageType:{
+    serviceQuality: #X,
+    sizeCategory: #S,
+    dataClass: #MIXED
+}
+define view entity ZAPR_CO_IDOC as select from edidc
+association[1] to ZAPR_I_EDIDS as _Status
+on edidc.docnum = _Status.docnum 
+ {
+    //edidc
+    key docnum,
+    status,
+    credat,
+    cretim,
+    _Status.statxt,
+    _Status.stapa1,
+    _Status.stapa2,
+    _Status.stapa3,
+    _Status.stapa4,
+    _Status.stamid,
+    _Status.stamno,
+    case
+        when _Status.stamid = 'CASH_MSG' and _Status.stamno = '095' then 'Not Routed'
+        when _Status.stamid = 'V1' and _Status.stamno = '384' then 'Missing Part No'
+        when _Status.stamid = 'TAX_TXJCD' and _Status.stamno = '101' then 'Address Error'
+        when _Status.stamid = 'VG' and _Status.stamno = '140' then 'Ship to Loc Error'
+        else 'Others' end as ErrorCategory,
+    case when _Status.stamid = 'CASH_MSG' and _Status.stamno = '095' then cast(1 as abap.int4)
+         else 0 end as NotRouted,
+    case when _Status.stamid = 'V1' and _Status.stamno = '384' then cast(1 as abap.int4)
+        else 0 end as MissingPart,
+    case when _Status.stamid = 'TAX_TXJCD' and _Status.stamno = '101' then cast(1 as abap.int4)
+        else 0 end as AddressError,
+    case when _Status.stamid = 'VG' and _Status.stamno = '140' then cast(1 as abap.int4)
+        else 0 end as ShipToLoc,
+    case when ( _Status.stamid = 'CASH_MSG' and _Status.stamno = '095' ) or
+        ( _Status.stamid = 'V1' and _Status.stamno = '384' ) or
+        ( _Status.stamid = 'TAX_TXJCD' and _Status.stamno = '101' ) or 
+        ( _Status.stamid = 'VG' and _Status.stamno = '140' )  then 0
+        else cast(1 as abap.int4) end as Others
+        
+}
+
+
+
+@AbapCatalog.sqlViewName: 'ZAPRCIDDASH'
+@AbapCatalog.compiler.compareFilter: true
+@AbapCatalog.preserveKey: true
+@AccessControl.authorizationCheck: #CHECK
+@EndUserText.label: 'IDoc Dashboard'
+@OData.publish: true
+@UI.chart: [{
+                qualifier: 'modi',
+                title: 'Issues %',
+                chartType: #DONUT,
+                description: 'Anubhav Trainings',
+                measures: ['TotalErros'],
+                dimensions: ['ErrorCategory'],
+                dimensionAttributes: [{dimension: 'ErrorCategory', role: #CATEGORY }],
+                measureAttributes: [{measure: 'TotalErros', asDataPoint: true, role: #AXIS_1 }]
+                
+ },
+ {
+                qualifier: 'putin',
+                title: 'Issues %',
+                chartType: #COLUMN,
+                description: 'Anubhav Trainings',
+                measures: ['TotalErros'],
+                dimensions: ['ErrorCategory'],
+                dimensionAttributes: [{dimension: 'ErrorCategory', role: #CATEGORY }],
+                measureAttributes: [{measure: 'TotalErros', asDataPoint: true, role: #AXIS_1 }]
+ }]
+define view ZAPR_C_IDOC_DASHBOARD as select from ZAPR_CO_IDOC {
+    @UI.lineItem: [{position: 10 }]
+    key ErrorCategory,
+    @UI.lineItem: [{position: 20, type: #AS_DATAPOINT }]
+    @UI.dataPoint:{
+        criticalityCalculation: {
+            improvementDirection: #MINIMIZE,
+            deviationRangeHighValue: 2500,
+            deviationRangeLowValue: 2500,
+            toleranceRangeHighValue: 1500,
+            toleranceRangeLowValue: 1500
+        }
+    }
+    sum( case ErrorCategory
+            when 'Not Routed' then NotRouted
+            when 'Missing Part No' then MissingPart
+            when 'Address Error' then  AddressError
+            when 'Ship to Loc Error' then ShipToLoc
+            when 'Others' then  Others end
+     ) as TotalErros
+} group by ErrorCategory
+
+
+
+
+
+

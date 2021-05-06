@@ -1,0 +1,39 @@
+@AbapCatalog.sqlViewName: 'ZIBUPASEC'
+@AbapCatalog.compiler.compareFilter: true
+@AbapCatalog.preserveKey: true
+@AccessControl.authorizationCheck: #CHECK
+@EndUserText.label: 'Business Partners'
+@VDM.viewType: #BASIC
+@Analytics.dataCategory: #DIMENSION
+define view ZI_MAR_BUPA_SECURE as select from snwd_bpa as bpa
+association[1] to snwd_ad as _Address on
+$projection.address_guid = _Address.node_key 
+ {
+    //bpa
+    key node_key,
+    case bp_role 
+        when '01' then 'Customer'
+        when '02' then 'Supplier'
+        end as BPType,
+    address_guid,
+    bp_id,
+    company_name,
+    approval_status,
+    _Address.country as Country,
+    _Address.city as City
+}
+
+
+
+@EndUserText.label: 'DCL for view ZI_MAR_BUPA_SECURE'
+@MappingRole: true
+define role ZI_MAR_BUPA_SECURE {
+    grant 
+        select
+            on
+                ZI_MAR_BUPA_SECURE
+                    where
+                        (Country) = aspect pfcg_auth('ZMAR_2021', ZMAR_CNRTY, ACTVT = '03');
+                        
+}
+
