@@ -1,5 +1,3 @@
-
-
 @AbapCatalog.sqlViewName: 'ZMARCDSBUG'
 @AbapCatalog.compiler.compareFilter: true
 @AbapCatalog.preserveKey: true

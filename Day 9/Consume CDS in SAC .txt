@@ -1,0 +1,37 @@
+@AbapCatalog.sqlViewName: 'ZCDSSACMAR'
+@AbapCatalog.compiler.compareFilter: true
+@AbapCatalog.preserveKey: true
+@AccessControl.authorizationCheck: #CHECK
+@EndUserText.label: 'Sales Analytics view for Analytics Cloud'
+@VDM.viewType: #CONSUMPTION
+@Analytics.dataCategory: #CUBE
+@Analytics.dataExtraction.enabled: true
+@OData.publish: true
+define view ZSALES_SAC_MAR as select from SEPM_I_SalesOrderItem_E {
+    //sepm_i_salesorderitem_e
+    key SalesOrder as OrderId,
+    key SalesOrderItem as ItemId,
+    _SalesOrder._Customer.CompanyName as CustomerName,
+    Product,
+    @Semantics.currencyCode: true
+    TransactionCurrency as Currency,
+    @Semantics.amount.currencyCode: 'Currency'
+    @DefaultAggregation: #SUM
+    GrossAmountInTransacCurrency,
+    @Semantics.amount.currencyCode: 'Currency'
+    @DefaultAggregation: #SUM
+    NetAmountInTransactionCurrency,
+    @Semantics.amount.currencyCode: 'Currency'
+    @DefaultAggregation: #SUM
+    TaxAmountInTransactionCurrency,
+    @Semantics.amount.currencyCode: 'Currency'
+    @DefaultAggregation: #SUM
+    currency_conversion( amount => GrossAmountInTransacCurrency, 
+    source_currency => TransactionCurrency, 
+    target_currency => cast('EUR' as abap.cuky), 
+    exchange_rate_date => cast('20210410' as abap.dats) ) as ConvertedAmount,
+    ProductAvailabilityStatus as ProductStatus
+}
+
+
+

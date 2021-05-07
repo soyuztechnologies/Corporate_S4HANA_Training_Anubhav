@@ -1,66 +1,250 @@
-@AbapCatalog.sqlViewName: 'ZJANIBUPA'
+@AbapCatalog.sqlViewName: 'ZMARCDSSO'
 @AbapCatalog.compiler.compareFilter: true
 @AbapCatalog.preserveKey: true
 @AccessControl.authorizationCheck: #CHECK
-@EndUserText.label: 'Interface View, Business Partner'
-@VDM.viewType: #BASIC
+@EndUserText.label: 'Sales Order Header'
 
-define view ZJAN_P_BUPA as select from snwd_bpa {
-    //snwd_bpa
-    key node_key as BPKey,
-    bp_role as BPRole,
-    email_address as EmailAddress,
-    address_guid as AddressKey,
-    bp_id as BPId,
-    company_name as CompanyName
-}
-
-
-@AbapCatalog.sqlViewName: 'ZJAN_BPADR'
-@AbapCatalog.compiler.compareFilter: true
-@AbapCatalog.preserveKey: true
-@AccessControl.authorizationCheck: #CHECK
-@EndUserText.label: 'Business Partner Address Data'
-@VDM.viewType: #BASIC
-define view ZJAN_I_BP_ADR as select from ZJAN_P_BUPA as BP
-inner join snwd_ad as Address on
- BP.AddressKey = Address.node_key
- {
-    //ZJAN_P_BUPA
-    key BPKey,
-    BPRole,
-    EmailAddress,
-    AddressKey,
-    BPId,
-    CompanyName,
-    Address.country,
-    Address.city
-}
-
-
-
-@AbapCatalog.sqlViewName: 'ZJANIBPD'
-@AbapCatalog.compiler.compareFilter: true
-@AbapCatalog.preserveKey: true
-@AccessControl.authorizationCheck: #CHECK
-@EndUserText.label: 'Address and Business Partner'
-@VDM.viewType: #BASIC
 @OData.publish: true
-define view ZJAN_I_BP_DATA as select from ZJAN_P_BUPA as BP
-association[0..1] to snwd_ad as _Address on
-BP.AddressKey = _Address.node_key
-{
-    //BP
-    key BPKey,
-    BPRole,
-    EmailAddress,
-    AddressKey,
-    BPId,
-    CompanyName,
-    /*Exposed Association */
-    _Address
-    /*Ad Hoc association */
-    //_Address.city
+define view ZMAR_CDS_SO as select from snwd_so as Orders
+association[0..*] to snwd_so_i as _Items on
+Orders.node_key = _Items.parent_key
+association[1] to snwd_bpa as _BusinessPartner on
+Orders.buyer_guid = _BusinessPartner.node_key
+ {
+    //Orders
+    key node_key,
+    so_id,
+    buyer_guid,
+    currency_code,
+    gross_amount,
+    payment_method,
+    payment_terms,
+    _BusinessPartner.company_name as CompanyName,
+    //ad-hoc - since we have kept field from second table
+    //system HAS to perform join
+    //_Items.op_item_po
+    
+    ///This is an exposed association
+    _Items
 }
+
+
+
+@AbapCatalog.sqlViewName: 'ZVIPRODTEXT'
+@AbapCatalog.compiler.compareFilter: true
+@AbapCatalog.preserveKey: true
+@AccessControl.authorizationCheck: #CHECK
+@EndUserText.label: 'Product Texts'
+@ObjectModel.dataCategory: #TEXT
+@VDM : { viewType: #BASIC, private: true }
+
+define view ZP_PRODUCT_TEXT as select from snwd_texts {
+    //snwd_texts
+    key node_key,
+    key language,
+    parent_key,
+    text
+}
+
+
+
+@AbapCatalog.sqlViewName: 'ZIMARPRO'
+@AbapCatalog.compiler.compareFilter: true
+@AbapCatalog.preserveKey: true
+@AccessControl.authorizationCheck: #CHECK
+@EndUserText.label: 'Interface, Dimension, Basic Type'
+@VDM.viewType: #BASIC
+@Analytics.dataCategory: #DIMENSION
+
+define view ZI_MAR_PRODUCT as select from snwd_pd
+association[1..*] to ZP_PRODUCT_TEXT as _Texts on 
+ $projection.DescriptionGuid = _Texts.parent_key
+ {
+    //snwd_pd
+    key node_key as ProductKey,
+    product_id as ProductId,
+    category as Category,
+    desc_guid as DescriptionGuid,
+    _Texts
+}
+
+
+
+@AbapCatalog.sqlViewName: 'ZIMARBUP'
+@AbapCatalog.compiler.compareFilter: true
+@AbapCatalog.preserveKey: true
+@AccessControl.authorizationCheck: #CHECK
+@EndUserText.label: 'Business Partners'
+@VDM.viewType: #BASIC
+@Analytics.dataCategory: #DIMENSION
+define view ZI_MAR_BUPA as select from snwd_bpa 
+association[1] to snwd_ad as _Addresses on
+$projection.AddressGuid = _Addresses.node_key
+ {
+    //snwd_bpa
+    key node_key as PartnerKey,
+    address_guid as AddressGuid,
+    bp_id as BpId,
+    company_name as CompanyName,
+    _Addresses.country as Country
+}
+
+
+
+@AbapCatalog.sqlViewName: 'ZIMARSO'
+@AbapCatalog.compiler.compareFilter: true
+@AbapCatalog.preserveKey: true
+@AccessControl.authorizationCheck: #CHECK
+@EndUserText.label: 'Sales Orders'
+@VDM.viewType: #BASIC
+@Analytics.dataCategory: #FACT
+define view ZI_MAR_ORDERS as select from snwd_so as Orders
+association[1..*] to snwd_so_i as _Items on
+Orders.node_key = _Items.parent_key
+ {
+    //snwd_so
+    key node_key,
+    so_id,
+    buyer_guid,
+    currency_code,
+    gross_amount,
+    net_amount,
+    tax_amount,
+    overall_status,
+    _Items
+}
+
+
+
+@AbapCatalog.sqlViewName: 'ZCOMARSO'
+@AbapCatalog.compiler.compareFilter: true
+@AbapCatalog.preserveKey: true
+@AccessControl.authorizationCheck: #CHECK
+@EndUserText.label: 'Composite view'
+@VDM.viewType: #COMPOSITE
+define view ZCO_MAR_SALES
+ as select from ZI_MAR_ORDERS
+association[1] to ZI_MAR_BUPA as _BusinessPartner on
+$projection.buyer_guid = _BusinessPartner.PartnerKey
+association[1] to ZI_MAR_PRODUCT as _Products on
+$projection.ProductGuid = _Products.ProductKey
+ {
+//ZI_MAR_ORDERS
+    key node_key as OrderKey,
+    so_id as OrderNo,
+    buyer_guid as BuyerGuid,
+    currency_code as CurrencyCode,
+    gross_amount as GrossAmount,
+    net_amount as NetAmount,
+    tax_amount as TaxAmount,
+    overall_status as OverallStatus,
+    /* Associations */
+    //ZI_MAR_ORDERS
+    _Items.product_guid as ProductGuid,
+    _Items.so_item_pos as ItemPos,
+    _BusinessPartner,
+    _Products
+        
+}
+
+
+
+@AbapCatalog.sqlViewName: 'ZCOMARCUBE'
+@AbapCatalog.compiler.compareFilter: true
+@AbapCatalog.preserveKey: true
+@AccessControl.authorizationCheck: #CHECK
+@EndUserText.label: 'Sales Cube View'
+@Analytics.dataCategory: #CUBE
+@VDM.viewType: #COMPOSITE
+define view ZCO_MAR_SALESCUBE with parameters 
+@Environment.systemField: #SYSTEM_LANGUAGE
+p_lang: abap.lang
+as select from ZCO_MAR_SALES {
+    //ZCO_MAR_SALES
+    //ZCO_MAR_SALES
+    key OrderKey,
+    OrderNo,
+    BuyerGuid,
+    CurrencyCode,
+    @DefaultAggregation: #SUM
+    @Semantics.amount.currencyCode: 'CurrencyCode'
+    GrossAmount,
+    @DefaultAggregation: #MIN
+    @Semantics.amount.currencyCode: 'CurrencyCode'
+    NetAmount,
+    @DefaultAggregation: #MAX
+    @Semantics.amount.currencyCode: 'CurrencyCode'
+    TaxAmount,
+    OverallStatus,
+    ProductGuid,
+    ItemPos,
+    /* Associations */
+    //ZCO_MAR_SALES
+    _BusinessPartner.CompanyName,
+    _BusinessPartner.Country,
+    _Products.Category,
+    cast(_Products._Texts[1:language = $parameters.p_lang].text as abap.char(250)) as ProductText
+}
+
+
+
+@AbapCatalog.sqlViewName: 'ZCMARSLS'
+@AbapCatalog.compiler.compareFilter: true
+@AbapCatalog.preserveKey: true
+@AccessControl.authorizationCheck: #CHECK
+@EndUserText.label: 'Sales Analytics View'
+@VDM.viewType: #CONSUMPTION
+@Analytics.query: true
+define view ZC_MAR_SALESANALYTICS with parameters 
+    @Environment.systemField: #SYSTEM_LANGUAGE
+    p_lang : abap.lang
+ as select from ZCO_MAR_SALESCUBE(p_lang : $parameters.p_lang) {
+//ZCO_MAR_SALESCUBE
+    key OrderKey,
+    OrderNo,
+    BuyerGuid,
+    CurrencyCode,
+    GrossAmount,
+    NetAmount,
+    TaxAmount,
+    OverallStatus,
+    ProductGuid,
+    ItemPos,
+    CompanyName,
+    Country,
+    @EndUserText.label: 'Maza Aavigiyo'
+    Category,
+    ProductText
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
