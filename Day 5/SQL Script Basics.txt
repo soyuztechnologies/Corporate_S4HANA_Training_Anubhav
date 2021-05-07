@@ -84,6 +84,16 @@ end;
 Test
 select * from getCustomers()
 
+EXTRA - Dynamic Select
+
+create procedure dynmictab(in tabname
+varchar(16))
+default schema saphanadb
+as begin
+
+execute immediate 'SELECT * FROM ' || :tabname;
+
+end;
 
 12. Basics of an Array
 
@@ -144,16 +154,17 @@ end;
 
 15. Working with cursor along a loop
 
-alter procedure cursorDemo(in cat varchar(40),
-out p1 varchar(40), out p2 varchar(40))
+alter procedure MRcursorDemo(in cat varchar(40))
 default schema saphanadb
 as begin
 
 declare products varchar(40) array;
-declare price decimal(5,2) array;
+declare price decimal(10,2) array;
+declare priceMRP decimal(10,2) array;
 --declare the cursor and assign a query to it
 declare cursor c1(icat varchar(40))
-	 for select product_id, price from snwd_pd where category = :icat;
+	 for select product_id, price 
+	 from snwd_pd where category = :icat;
 
 --when we use cursor with loop
 --it automatically opens and close cursor
@@ -161,10 +172,12 @@ declare cursor c1(icat varchar(40))
 --Loop at itab into wa
 for wa as c1(:cat) do
 	products[c1::rowcount] = wa.product_id;
-	price[c1::rowcount] = wa.price;
+	price[c1::rowcount] = round(wa.price,2);
+	priceMRP[c1::rowcount] = round(wa.price * 1.18,2);
 end for;
 
-select :products, :price from dummy;
+select :products as Product
+, :price as Actual, :priceMRP as GST from dummy;
 
 end;
 
@@ -219,19 +232,22 @@ create type tt_anubhav as table(
 18. Using the table type in FM to create output table
 
 
-alter procedure cursorDemo(in cat varchar(40),
-						   out et_data mob5.tt_anubhav
-)
+alter procedure MRcursorDemo(in cat varchar(40),
+out mytab table(
+				product varchar(40),
+				actual decimal(10,2),
+				mrp decimal(10,2)
+))
 default schema saphanadb
 as begin
 
 declare products varchar(40) array;
 declare price decimal(10,2) array;
-declare lv_mrp decimal(10,2);
-declare MRP decimal(10,2) array;
+declare priceMRP decimal(10,2) array;
 --declare the cursor and assign a query to it
 declare cursor c1(icat varchar(40))
-	 for select product_id, price from snwd_pd where category = :icat;
+	 for select product_id, price 
+	 from snwd_pd where category = :icat;
 
 --when we use cursor with loop
 --it automatically opens and close cursor
@@ -239,17 +255,25 @@ declare cursor c1(icat varchar(40))
 --Loop at itab into wa
 for wa as c1(:cat) do
 	products[c1::rowcount] = wa.product_id;
-	select round(wa.price, 2) into lv_mrp from dummy;
-	price[c1::rowcount] = :lv_mrp;
-	select round(wa.price * 118 / 100, 2) into lv_mrp from dummy;
-	mrp[c1::rowcount] := :lv_mrp;
+	price[c1::rowcount] = round(wa.price,2);
+	priceMRP[c1::rowcount] = round(wa.price * 1.18,2);
 end for;
 
---select :products, :price, :mrp from dummy;
---moves data from single column table to multi-dimension table
-et_data = unnest(:products, :price, :mrp) as (product_id, price, mrp);
+--select :products as Product
+--, :price as Actual, :priceMRP as GST from dummy;
+
+mytab = unnest(:products, :price, :priceMRP)
+		as (product, actual, mrp);
 
 end;
+
+EXTRA - Creating a reusable table type
+
+create type tt_mr as
+table (product_id varchar(40),
+price decimal(15,2),
+mrp decimal(15,2));
+
 
 19. Basics of internal table, Implicit declaration, Data-intensive logic
 
@@ -284,7 +308,38 @@ end for;
 end;
 
 
+extra - Scripted Calculation View
 
+
+ 
+ /********* Begin Procedure Script ************/ 
+ BEGIN 
+		 declare reccount integer;
+		declare i integer;
+		declare et_tab mob5.tt_mr;
+		declare lv_mrp decimal(10,2);
+--Implicit internal table
+		lt_products = select product_id, price from SAPHANADB.snwd_pd;
+		
+		reccount = record_count(:lt_products);
+--loop at internal table
+		for i in 1..:reccount do
+--inside the loop access values 1 by 1
+		lv_mrp = :lt_products.price[i] * (118) / 100;
+		
+		:et_tab.insert(
+						( :lt_products.product_id[i],
+						  :lt_products.price[i],
+						  :lv_mrp
+						), 
+					   :i);
+		
+		end for;
+		 
+ 	 var_out = select PRODUCT_ID, 
+ 	 PRICE, MRP from :et_tab;
+
+END /********* End Procedure Script ************/
 
 
 
