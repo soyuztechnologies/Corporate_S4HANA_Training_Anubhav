@@ -118,6 +118,30 @@ Base.node_key = SalesOrders.buyer_guid {
     SalesOrders.currency_code as CurrencyCode
 }
 
+EXTRA: Group by with View on View
+
+@AbapCatalog.sqlViewName: 'ZCDSXXGRP'
+@AbapCatalog.compiler.compareFilter: true
+@AbapCatalog.preserveKey: true
+@AccessControl.authorizationCheck: #CHECK
+@EndUserText.label: 'Group By Example'
+define view ZCDS_XX_GROUPBY 
+with parameters
+p_stat : snwd_so_oa_status_code
+ as select from snwd_so
+    inner join ZCDS_XX_BASIC(p_role: '01') as BusinessPartner
+    on  snwd_so.buyer_guid = BusinessPartner.node_key
+  {
+    key BusinessPartner.company_name,
+    key buyer_guid,
+    key created_by,
+    @Semantics.amount.currencyCode: 'currency_code'
+    //This is an aggregate function used inside cds
+    sum(gross_amount) as gross_amount,
+    currency_code
+    
+} where overall_status = $parameters.p_stat 
+group by buyer_guid, created_by, currency_code, BusinessPartner.company_name
 
 
 extend view entity ZMAR_CDS_BASE with {
