@@ -1,0 +1,27 @@
+<mvc:View controllerName="ats.hierZCDSHier.controller.Main" xmlns:html="http://www.w3.org/1999/xhtml" xmlns:mvc="sap.ui.core.mvc"
+	displayBlock="true" xmlns="sap.m"
+	xmlns:spiderman="sap.ui.comp.smartfilterbar" xmlns:superman="sap.ui.comp.smarttable" xmlns:t="sap.ui.table"
+	>
+	<App>
+		<pages>
+			<Page title="{i18n>title}">
+				<content>
+					<spiderman:SmartFilterBar id="idSmartBar" enableBasicSearch="true" showClearButton="true"
+											  entitySet="ZEMP_C_APR_HRS_XX">
+						<spiderman:controlConfiguration>
+							<spiderman:ControlConfiguration key="CostCenter" index="1" label="Cost Center" groupId="_BASIC"
+							width="300px" visibleInAdvancedArea="true">
+							</spiderman:ControlConfiguration>
+						</spiderman:controlConfiguration>
+					</spiderman:SmartFilterBar>
+					<superman:SmartTable id="smartTable" entitySet="ZEMP_C_APR_HRS_XX" smartFilterId="idSmartBar"
+										 tableBindingPath="/ZEMP_C_APR_HRS_XX" useExportToExcel="true" header="Employee Utilz."
+										 showRowCount="true" showFullScreenButton="true">
+						<t:TreeTable id="treeTable" rootLevel="0" selectionMode="Single" visibleRowCount="10">
+						</t:TreeTable>
+					</superman:SmartTable>
+				</content>
+			</Page>
+		</pages>
+	</App>
+</mvc:View>

@@ -1,0 +1,68 @@
+@EndUserText.label : 'ZMAR_CDS_BOPF ZMAR_CDS_BOPF'
+@AbapCatalog.enhancementCategory : #EXTENSIBLE_ANY
+@AbapCatalog.tableCategory : #TRANSPARENT
+@AbapCatalog.deliveryClass : #A
+@AbapCatalog.dataMaintenance : #RESTRICTED
+define table zoft_mar_meal {
+  key mandt       : mandt not null;
+  key meal_id     : /bobf/uuid not null;
+  carrid          : s_carr_id;
+  connid          : s_conn_id;
+  meal            : s_mealnum;
+  total_seats     : s_seatsmax;
+  status          : flag;
+  activeuuid      : /bobf/uuid;
+  hasactiveentity : sdraft_has_active;
+  include sdraft_write_draft_admin;
+
+}
+
+
+*&---------------------------------------------------------------------*
+*& Report ZMAINTAIN_DATA_ZOFT_MEALS
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+REPORT ZMAINTAIN_DATA_ZOFT_MEALS.
+data: lt_oft type table of zoft_flight_meal.
+data: lv_meal type  zoft_flight_meal-meal_id.
+select * from spfli into table @data(itab).
+LOOP AT itab INTO data(wa).
+lv_meal = cl_uuid_factory=>create_system_uuid( )->create_uuid_c32( ).
+  append value #( meal_id = lv_meal CARRID = wa-CARRID
+CONNID = wa-CONNID
+MEAL = 0
+TOTAL_SEATS = 0
+STATUS = abap_false ) to lt_oft.
+ENDLOOP.
+insert zoft_flight_meal from table lt_oft.
+
+
+
+@EndUserText.label : 'ZOFT_EMP_MGR'
+@AbapCatalog.enhancementCategory : #NOT_CLASSIFIED
+@AbapCatalog.tableCategory : #TRANSPARENT
+@AbapCatalog.deliveryClass : #A
+@AbapCatalog.dataMaintenance : #ALLOWED
+define table zoft_emp_mgr {
+  key mandt   : mandt not null;
+  key empid   : pernr_d not null;
+  key empname : char100 not null;
+  managerid   : pernr_d;
+  costcenter  : kostl;
+
+}
+
+
+@EndUserText.label : 'ZOFT_EMP_HRS'
+@AbapCatalog.enhancementCategory : #NOT_CLASSIFIED
+@AbapCatalog.tableCategory : #TRANSPARENT
+@AbapCatalog.deliveryClass : #A
+@AbapCatalog.dataMaintenance : #ALLOWED
+define table zoft_emp_hrs {
+  key client : abap.clnt not null;
+  key empid  : pernr_d not null;
+  planned    : abap.int4;
+  recorded   : abap.int4;
+
+}
